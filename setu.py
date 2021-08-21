@@ -1,4 +1,5 @@
 import os
+import json
 import random
 import re
 import traceback
@@ -15,6 +16,14 @@ from hoshino.typing import CQEvent, MessageSegment
 from nonebot import on_command
 
 
+with open('./hoshino/modules/setu/config.json') as json_data_file:
+    config = json.load(json_data_file)
+
+host = config['mysql']['host']
+user=config['mysql']['user']
+password=config['mysql']['password']
+database=config['mysql']['database']
+
 _max = 100
 EXCEED_NOTICE = f'您今天已经冲过{_max}次了，请明早5点后再来！'
 _nlmt = DailyNumberLimiter(_max)
@@ -22,18 +31,13 @@ _flmt = FreqLimiter(5)
 
 sv = Service('setu', manage_priv=priv.SUPERUSER, enable_on_default=True, visible=False)
 setu_folder = R.get('img/setu/').path
-conn = pymysql.connect(host="localhost",user="root",password="Jwh13372319912.",database="bot" )
+conn = pymysql.connect(host=host,user=user,password=password,database=database)
 cursor = conn.cursor()
-
 def test_conn():
     try:
         conn.ping()
     except:
-        conn = pymysql.connect(
-            host="localhost",
-            user="root",
-            password="Jwh13372319912.",
-            database="bot")
+        conn = pymysql.connect(host=host,user=user,password=password,database=database)
         cursor = conn.cursor()
 
 def setu_gener():
@@ -57,30 +61,7 @@ async def download(url, path):
             with open(path, 'wb') as f:
                 f.write(content)
                 
-@sv.on_fullmatch(('来份涩图', '来份色图', '来点色图', '来点涩图', '色图', '涩图'))
-async def setu(bot, ev):
-    """随机叫一份涩图，对每个用户有冷却时间"""
-    uid = ev['user_id']
-    if not _nlmt.check(uid):
-        await bot.send(ev, EXCEED_NOTICE, at_sender=True)
-        return
-    if not _flmt.check(uid):
-        await bot.send(ev, '您冲得太快了，请稍候再冲', at_sender=True)
-        return
-    _flmt.start_cd(uid)
-    _nlmt.increase(uid)
-
-    # conditions all ok, send a setu.
-    pic = get_setu()
-    try:
-        await bot.send(ev, os.path.split(str(pic.path))[1]+pic.cqcode)
-    except CQHttpError:
-        sv.logger.error(f"发送图片{pic.path}失败")
-        try:
-            await bot.send(ev, '涩图太涩，发不出去勒...')
-        except:
-            pass
-
+'''旧私聊方法，已弃用
 @on_command(('偷偷给你色图','偷偷给你男图'), aliases=('偷偷给你色图','偷偷给你男图'), only_to_me=True)
 async def test(session):
     message=session.event['message']
@@ -118,7 +99,7 @@ async def test(session):
         traceback.print_exc()
         print("yichang",e)
         await session.send('wuwuwu~涩图不知道在哪~')
-
+'''
 @sv.on_prefix(('kkqyxp','看看群友xp','看看群友性癖','kkntxp','看看男同xp','看看男同性癖'))
 async def choose_setu(bot, ev):
     print(ev)
@@ -147,7 +128,7 @@ async def choose_setu(bot, ev):
         if ev['prefix'] == ('kkntxp'or '看看男同xp' or '看看男同性癖'):
             is_man = 1
         if id1==0:#带tag
-            sql="SELECT * FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR url like \'%%%s%%\') ORDER BY RAND() limit 1"%(is_man,str(ev.message).strip(),str(ev.message).strip())
+            sql="SELECT * FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR id = \'%s\') ORDER BY RAND() limit 1"%(is_man,str(ev.message).strip(),str(ev.message).strip())
         if id1==1:#全随机
             sql="SELECT * FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"%is_man
         elif id1==2:#指定人
@@ -157,13 +138,17 @@ async def choose_setu(bot, ev):
         if not results:
            await bot.send(ev, '该群友xp不存在~~~')
         for row in results:
-            setuname=os.path.join(setu_folder,row[0])
-            user = row[1]
-            date = row[2]
-            tag = row[3]
-        await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(setuname)}') + f'\n客官，这是您点的涩图~涩图来源[CQ:at,qq={str(user)}]'+ f'TAG:{str(tag)}' + f'\n上传日期{str(date)}'))
+            url=os.path.join(setu_folder,row[1])
+            user = row[2]
+            date = row[3]
+            tag = row[4]
+        if tag =='':
+            tag = f'当前TAG为空哦，您可以发送修改TAG{row[0]}进行编辑~'
+        else:
+            tag = f'TAG:{str(tag)}'
+        await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n客官，这是您点的涩图~涩图来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}' + f'\n上传日期{str(date)}'+f'\n如需删除请联系管理员发送删除色图{str(row[0])}'))
     except CQHttpError:
-        sv.logger.error(f"发送图片{setuname}失败")
+        sv.logger.error(f"发送图片{row[0]}失败")
         try:
             await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
         except:
@@ -188,33 +173,62 @@ async def give_setu(bot, ev:CQEvent):
             elif seg.type == 'image':
                 img_url = seg.data['url']
                 setu_name = seg.data['file']
-                await download(img_url, os.path.join(setu_folder,setu_name))
-                sql="REPLACE INTO localsetu VALUES (\'%s\',%s,NOW(),\'%s\',%s)"%(setu_name,str(ev['user_id']),tag,is_man)
-                #await bot.send(ev,str(sql))
+                sql="SELECT id FROM localsetu where url = '%s'"%str(seg.data['file'])
                 cursor.execute(sql)
-                conn.commit()
-                await bot.send(ev, f'涩图收到了~TAG为{tag},如需删除请联系管理员发送删除色图{setu_name}')
+                result = cursor.fetchone()
+                if not result:
+                    await download(img_url, os.path.join(setu_folder,setu_name))
+                    sql="INSERT IGNORE INTO localsetu VALUES (NULL,\'%s\',%s,NOW(),\'%s\',%s)"%(setu_name,str(ev['user_id']),tag,is_man)
+                    cursor.execute(sql)
+                    #id=conn.insert_id()
+                    id=cursor.lastrowid
+                    conn.commit()
+                    await bot.send(ev, f'涩图收到了~TAG为{tag},如需删除请联系管理员发送删除色图{id}')
+                else:
+                    await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
     except Exception as e:
         print("yichang",e)
-        await bot.send(ev, 'wuwuwu~涩图不知道在哪~')
+        await bot.send(ev, 'wuwuwu~上传失败了~')
 
 
 @sv.on_prefix(('删除涩图', '删除色图','删除男图'))
 async def del_setu(bot, ev: CQEvent):
-    if not priv.check_priv(ev, priv.ADMIN):
+    if not priv.check_priv(ev, priv.SUPERUSER):
         await bot.finish(ev, '抱歉，您非管理员，无此指令使用权限')
-    setu_name = str(ev.message).strip()
-    #await bot.send(ev,setu_name)
-    if not setu_name or setu_name=="":
-        await bot.send(ev, '请在后面加上要删除的涩图名~')
+    id = str(ev.message).strip()
+    if not id or id=="":
+        await bot.send(ev, '请在后面加上要删除的涩图序号~')
         return
     try:
         test_conn()
-        #await bot.send(ev,str(os.path.join(setu_folder, setu_name)))
-        os.remove(os.path.join(setu_folder, setu_name))
-        sql="delete from localsetu,localsetu_man where url = %s"
-        cursor.execute(sql,(setu_name,))
+        sql="select url from localsetu where id = %s"%id
+        cursor.execute(sql)
+        results = cursor.fetchall()
+        if not results:
+           await bot.send(ev, '请检查id是否正确~')
+        for row in results:
+            url=row[0]
+        os.remove(os.path.join(setu_folder, row[0]))
+        sql="delete from localsetu where id = %s"%id
+        cursor.execute(sql)
         conn.commit()
         await bot.send(ev, 'OvO~涩图删掉了~')
-    except:
+    except Exception as e:
+        print("yichang",e)
         await bot.send(ev, 'QAQ~删涩图的时候出现了问题，但一定不是我的问题~')
+
+@sv.on_prefix(('修改TAG','修改tag'))
+async def modify_tag(bot, ev: CQEvent):
+    test_conn()
+    if not str(ev.message).strip() or str(ev.message).strip()=="":
+        await bot.send(ev, '请在指令后添加ID和TAG哦~以空格区分')
+        return
+    try:
+        id,tag=str(ev.message).split(' ', 1 )
+        sql="update localsetu set tag = \'%s\' where id = \'%s\'"%(tag,id)
+        cursor.execute(sql)
+        conn.commit()
+        await bot.send(ev, f'涩图{id}的TAG已更新为{tag}')
+    except Exception as e:
+        print("yichang",e)
+        await bot.send(ev, '请在指令后添加ID和TAG哦~以空格区分')
