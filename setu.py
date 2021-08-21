@@ -1,6 +1,8 @@
 import os
 import random
 import re
+import traceback
+from nonebot.typing import State_T
 import requests
 import time
 import pymysql
@@ -10,7 +12,7 @@ from nonebot.exceptions import CQHttpError
 from hoshino import R, Service, priv
 from hoshino.util import FreqLimiter, DailyNumberLimiter
 from hoshino.typing import CQEvent, MessageSegment
-
+from nonebot import on_command
 
 
 _max = 100
@@ -79,6 +81,36 @@ async def setu(bot, ev):
         except:
             pass
 
+@on_command('偷偷给你色图', aliases=('偷偷给你色图'), only_to_me=True)
+async def test(session):
+    message=session.event['message']
+    #for mes in message:
+    #    print("----",mes)
+   # print("==========================================",message)
+  #  await session.send("爬")
+    try:
+        test_conn()
+        if not str(message).strip() or str(message).strip()=="":
+            await session.send('发涩图发涩图~')
+            return
+        tag = ""
+        for i,seg in enumerate(message):
+            if seg.type == 'text':
+                tag = str(seg).lstrip('偷偷给你色图 ')
+            elif seg.type == 'image':
+                img_url = seg.data['url']
+                setu_name = seg.data['file']
+                await download(img_url, os.path.join(setu_folder,setu_name))
+                sql="REPLACE INTO localsetu VALUES (\'%s\',%s,NOW(),\'%s\')"%(setu_name,str(session.event['user_id']),tag)
+                #await bot.send(ev,str(sql))
+                cursor.execute(sql)
+                conn.commit()
+                await session.send(f'涩图收到了~如需删除请联系管理员发送删除色图{setu_name}')
+    except Exception as e:
+        traceback.print_exc()
+        print("yichang",e)
+        await session.send('wuwuwu~涩图不知道在哪~')
+
 @sv.on_prefix(('kkqyxp','看看群友xp','看看群友性癖'))
 async def choose_setu(bot, ev):
     uid = ev['user_id']
@@ -115,8 +147,9 @@ async def choose_setu(bot, ev):
         for row in results:
             setuname=os.path.join(setu_folder,row[0])
             user = row[1]
+            date = row[2]
             tag = row[3]
-        await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(setuname)}') + f'\n客官，这是您点的涩图~涩图来源[CQ:at,qq={str(user)}]'+ f'TAG:{str(tag)}'))
+        await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(setuname)}') + f'\n客官，这是您点的涩图~涩图来源[CQ:at,qq={str(user)}]'+ f'TAG:{str(tag)}' + f'\n上传日期{str(date)}'))
     except CQHttpError:
         sv.logger.error(f"发送图片{setuname}失败")
         try:
@@ -172,7 +205,6 @@ async def choose_setu(bot, ev):
 async def give_setu(bot, ev:CQEvent):
     try:
         test_conn()
-        ticks = int(time.time())
         if not str(ev.message).strip() or str(ev.message).strip()=="":
             await bot.send(ev, '发涩图发涩图~')
             return
@@ -184,7 +216,7 @@ async def give_setu(bot, ev:CQEvent):
                 img_url = seg.data['url']
                 setu_name = seg.data['file']
                 await download(img_url, os.path.join(setu_folder,setu_name))
-                sql="REPLACE INTO localsetu VALUES (\'%s\',%s,\'%s\',\'%s\')"%(setu_name,str(ev['user_id']),str(ticks),tag)
+                sql="REPLACE INTO localsetu VALUES (\'%s\',%s,NOW(),\'%s\')"%(setu_name,str(ev['user_id']),tag)
                 #await bot.send(ev,str(sql))
                 cursor.execute(sql)
                 conn.commit()
@@ -208,7 +240,7 @@ async def give_setu(bot, ev:CQEvent):
                 img_url = seg.data['url']
                 setu_name = seg.data['file']
                 await download(img_url, os.path.join(setu_folder,setu_name))
-                sql="REPLACE INTO localsetu_man VALUES (\'%s\',%s,\'%s\',\'%s\')"%(setu_name,str(ev['user_id']),str(ticks),tag)
+                sql="REPLACE INTO localsetu_man VALUES (\'%s\',%s,NOW(),\'%s\')"%(setu_name,str(ev['user_id']),tag)
                 cursor.execute(sql)
                 conn.commit()
                 await bot.send(ev, f'涩图收到了~如需删除请联系管理员发送删除色图{setu_name}')
