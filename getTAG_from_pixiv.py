@@ -14,6 +14,8 @@ host = config['mysql']['host']
 user=config['mysql']['user']
 password=config['mysql']['password']
 database=config['mysql']['database']
+api_key=config['api']['sauceNAO']
+refresh_token=config['api']['refresh_token']
 
 setu_folder = "C:/Users/Administrator/Desktop/hoshino_xcw/XCW/res/img/setu"
 conn = pymysql.connect(host=host,user=user,password=password,database=database)
@@ -26,7 +28,7 @@ def get_pixiv_id(url):
       'https': 'http://127.0.0.1:7890',
       }
     }
-    saucenao = SauceNAO(db = 5,api_key='a36c566e679af0526da9399c3c6f1865d7e1739e',**_REQUESTS_KWARGS)
+    saucenao = SauceNAO(db = 5,api_key=api_key,**_REQUESTS_KWARGS)
     res = saucenao.search(url)
     pixiv_id = res.raw[0].pixiv_id
     if res.raw[0].similarity < 60 or pixiv_id == '' or not pixiv_id:
@@ -39,7 +41,7 @@ def get_pixiv_tag(pixiv_id):
     try:
         api = AppPixivAPI()
         api.set_accept_language('zh-cn')
-        api.auth(refresh_token='-5YGz043uSWJpAenikubPJmHYY7UAhMtgQSeKv6EY2A')
+        api.auth(refresh_token=refresh_token)
 # get origin url
         json_result = api.illust_detail(pixiv_id)
         illust = json_result.illust.tags
