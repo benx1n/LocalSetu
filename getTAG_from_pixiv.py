@@ -1,29 +1,82 @@
 from pixivpy3 import *
 from PicImageSearch import SauceNAO
+import os
+import json
+import requests
+import pymysql
+import time
+from loguru import logger
 
-def get_tag(url):
+with open('./config.json') as json_data_file:
+    config = json.load(json_data_file)
+
+host = config['mysql']['host']
+user=config['mysql']['user']
+password=config['mysql']['password']
+database=config['mysql']['database']
+
+setu_folder = "C:/Users/Administrator/Desktop/hoshino_xcw/XCW/res/img/setu"
+conn = pymysql.connect(host=host,user=user,password=password,database=database)
+cursor = conn.cursor()
+
+def get_pixiv_id(url):
     pixiv_id = 0
     _REQUESTS_KWARGS = {
     'proxies': {
       'https': 'http://127.0.0.1:7890',
       }
     }
-    saucenao = SauceNAO(api_key='a36c566e679af0526da9399c3c6f1865d7e1739e',**_REQUESTS_KWARGS)
+    saucenao = SauceNAO(db = 5,api_key='a36c566e679af0526da9399c3c6f1865d7e1739e',**_REQUESTS_KWARGS)
     res = saucenao.search(url)
-    print(res.raw[0].pixiv_id)
     pixiv_id = res.raw[0].pixiv_id
+    if res.raw[0].similarity < 60 or pixiv_id == '' or not pixiv_id:
+        print(res.raw[0].similarity)
+        pixiv_id = 0
+    return pixiv_id
 
-    api = AppPixivAPI()
-    api.set_accept_language('zh-cn')
-    api.auth(refresh_token='-5YGz043uSWJpAenikubPJmHYY7UAhMtgQSeKv6EY2A')
 
+def get_pixiv_tag(pixiv_id):
+    try:
+        api = AppPixivAPI()
+        api.set_accept_language('zh-cn')
+        api.auth(refresh_token='-5YGz043uSWJpAenikubPJmHYY7UAhMtgQSeKv6EY2A')
 # get origin url
-    json_result = api.illust_detail(pixiv_id)
-    illust = json_result.illust.tags
-    list = ''
-    for i in illust:
-        list = list + str(i['translated_name']) + " "
-    print(list)
+        json_result = api.illust_detail(pixiv_id)
+        illust = json_result.illust.tags
+        pixiv_tag = ''
+        for i in illust:
+            pixiv_tag = pixiv_tag.strip() + " "+ str(i['translated_name']).strip('None').replace("'","\\'") #拼接字符串 处理带引号sql
+        pixiv_tag = pixiv_tag.strip()
+        return pixiv_tag
+    except Exception as e:
+        print("yichang",e)
+        return ''
 
 if __name__ == "__main__":
-    get_tag('https://gchat.qpic.cn/gchatpic_new/990345019/574432871-2551012026-FED07059E919DEEEB01D3A351E342DA4/0?term=3')
+    sql="SELECT id,url FROM bot.localsetu where pixiv_id is NULL limit 500"
+    cursor.execute(sql)
+    results = cursor.fetchall()
+    url=''
+    id = 0
+    for row in results:
+        id = row[0]
+        url= setu_folder+'/'+row[1]
+        print(id)
+        try:
+            pixiv_id= get_pixiv_id(url)
+            print(pixiv_id)
+            try:
+                pixiv_tag=get_pixiv_tag(pixiv_id)
+            except Exception as e:
+                print("yichang",e)
+            pixiv_tag = pixiv_tag.strip('None')
+            print(pixiv_tag)
+
+            #if pixiv_tag == '':
+                #continue
+            sql="update localsetu set pixiv_id = %s , pixiv_tag = \'%s\' where id = %s"%(pixiv_id,pixiv_tag,id)
+            cursor.execute(sql)
+            conn.commit()
+        except Exception as e:
+            print("yichang",e)
+            continue

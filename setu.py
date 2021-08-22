@@ -114,7 +114,8 @@ async def choose_setu(bot, ev):
     _nlmt.increase(uid)
    # text = 
     id1=0
-    if not str(ev.message).strip() or str(ev.message).strip()=="":
+    searchtag = str(ev.message).strip()
+    if not searchtag or searchtag=="":
         id1=1
     elif ev.message[0].type == 'at':
         id1 = 2
@@ -128,7 +129,10 @@ async def choose_setu(bot, ev):
         if ev['prefix'] == ('kkntxp'or '看看男同xp' or '看看男同性癖'):
             is_man = 1
         if id1==0:#带tag
-            sql="SELECT * FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR id = \'%s\') ORDER BY RAND() limit 1"%(is_man,str(ev.message).strip(),str(ev.message).strip())
+            if searchtag.isdigit(): #id
+                sql="SELECT * FROM bot.localsetu where man = %s AND id = \'%s\' ORDER BY RAND() limit 1"%(is_man,searchtag)
+            else:   #tag
+                sql="SELECT * FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR pixiv_tag like \'%%%s%%\') ORDER BY RAND() limit 1"%(is_man,searchtag,searchtag)
         if id1==1:#全随机
             sql="SELECT * FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"%is_man
         elif id1==2:#指定人
@@ -138,15 +142,17 @@ async def choose_setu(bot, ev):
         if not results:
            await bot.send(ev, '该群友xp不存在~~~')
         for row in results:
+            id = row[0]
             url=os.path.join(setu_folder,row[1])
             user = row[2]
             date = row[3]
             tag = row[4]
+            pixiv_tag = row[7]
         if tag =='':
-            tag = f'当前TAG为空哦，您可以发送修改TAG{row[0]}进行编辑~'
+            tag = f'当前TAG为空，您可以发送修改TAG{row[0]}进行编辑~'
         else:
-            tag = f'TAG:{str(tag)}'
-        await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n客官，这是您点的涩图~涩图来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}' + f'\n上传日期{str(date)}'+f'\n如需删除请联系管理员发送删除色图{str(row[0])}'))
+            tag = f'自定义TAG:{str(tag)}'
+        await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' + f'\n上传日期{str(date)}'+f'\n支持ID、来源、TAG模糊查询哦~'))
     except CQHttpError:
         sv.logger.error(f"发送图片{row[0]}失败")
         try:
@@ -178,12 +184,12 @@ async def give_setu(bot, ev:CQEvent):
                 result = cursor.fetchone()
                 if not result:
                     await download(img_url, os.path.join(setu_folder,setu_name))
-                    sql="INSERT IGNORE INTO localsetu VALUES (NULL,\'%s\',%s,NOW(),\'%s\',%s)"%(setu_name,str(ev['user_id']),tag,is_man)
+                    sql="INSERT IGNORE INTO localsetu (id,url,user,date,tag,man) VALUES (NULL,\'%s\',%s,NOW(),\'%s\',%s)"%(setu_name,str(ev['user_id']),tag,is_man)
                     cursor.execute(sql)
                     #id=conn.insert_id()
                     id=cursor.lastrowid
                     conn.commit()
-                    await bot.send(ev, f'涩图收到了~TAG为{tag},如需删除请联系管理员发送删除色图{id}')
+                    await bot.send(ev, f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG')
                 else:
                     await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
     except Exception as e:
