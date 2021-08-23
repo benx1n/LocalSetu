@@ -4,12 +4,16 @@ import random
 import re
 import traceback
 from nonebot.typing import State_T
+from numpy.lib.function_base import quantile
 import requests
 import time
+from PIL import Image
 import pymysql
 import aiohttp
-from nonebot.exceptions import CQHttpError
+import numpy as np
+import hashlib
 
+from nonebot.exceptions import CQHttpError
 from hoshino import R, Service, priv
 from hoshino.util import FreqLimiter, DailyNumberLimiter
 from hoshino.typing import CQEvent, MessageSegment
@@ -31,13 +35,13 @@ _flmt = FreqLimiter(5)
 
 sv = Service('setu', manage_priv=priv.SUPERUSER, enable_on_default=True, visible=False)
 setu_folder = R.get('img/setu/').path
-conn = pymysql.connect(host=host,user=user,password=password,database=database)
+conn = pymysql.connect(host=host,user=user,password=password,database=database,charset='utf8',autocommit = 1)
 cursor = conn.cursor()
 def test_conn():
     try:
         conn.ping()
     except:
-        conn = pymysql.connect(host=host,user=user,password=password,database=database)
+        conn = pymysql.connect(host=host,user=user,password=password,database=database,charset='utf8',autocommit = 1)
         cursor = conn.cursor()
 
 def setu_gener():
@@ -60,7 +64,30 @@ async def download(url, path):
             content = await resp.read()
             with open(path, 'wb') as f:
                 f.write(content)
-                
+
+#下面的函数随机更改图片的某个像素值，用于反和谐
+def image_random_one_pixel(img1):  
+    w,h=img1.size
+    pots=[(0,0),(0,h-1),(w-1,0),(w-1,h-1)]
+    pot=pots[random.randint(0,3)]
+    print(pot)
+   # pot_pixel=img1.getpixel(pot)
+  #  rate=random.uniform(0,1)
+ #   new_r=int(pot_pixel[h,w][0][0]*rate)
+  #  new_g=int(pot_pixel[h,w][0][1]*rate)
+  #  new_b=int(pot_pixel[h,w][0][2]*rate)
+    img1.putpixel(pot,(random.randint(0,255),random.randint(0,255),random.randint(0,255)))
+    return img1
+
+#图片文件转为MD5
+def image2MD5(filename):
+    file = open(filename, "rb")
+    md = hashlib.md5()
+    md.update(file.read())
+    res1 = md.hexdigest()
+    print(res1)
+    return res1+".image"
+
 '''旧私聊方法，已弃用
 @on_command(('偷偷给你色图','偷偷给你男图'), aliases=('偷偷给你色图','偷偷给你男图'), only_to_me=True)
 async def test(session):
@@ -130,31 +157,35 @@ async def choose_setu(bot, ev):
             is_man = 1
         if id1==0:#带tag
             if searchtag.isdigit(): #id
-                sql="SELECT * FROM bot.localsetu where man = %s AND id = \'%s\' ORDER BY RAND() limit 1"%(is_man,searchtag)
+                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag FROM bot.localsetu where man = %s AND id = \'%s\' ORDER BY RAND() limit 1"%(is_man,searchtag)
             else:   #tag
-                sql="SELECT * FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR pixiv_tag like \'%%%s%%\') ORDER BY RAND() limit 1"%(is_man,searchtag,searchtag)
+                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR pixiv_tag like \'%%%s%%\') ORDER BY RAND() limit 1"%(is_man,searchtag,searchtag)
         if id1==1:#全随机
-            sql="SELECT * FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"%is_man
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"%is_man
         elif id1==2:#指定人
-            sql="SELECT * from localsetu where man = %s AND user = \'%s\' ORDER BY RAND() limit 1"%(is_man,str(user))
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag from localsetu where man = %s AND user = \'%s\' ORDER BY RAND() limit 1"%(is_man,str(user))
         cursor.execute(sql)
-        results = cursor.fetchall()
-        if not results:
+        #conn.commit()
+        result = cursor.fetchone()
+        if not result:
            await bot.send(ev, '该群友xp不存在~~~')
-        for row in results:
-            id = row[0]
-            url=os.path.join(setu_folder,row[1])
-            user = row[2]
-            date = row[3]
-            tag = row[4]
-            pixiv_tag = row[7]
+           return
+        id = result[0]
+        url=os.path.join(setu_folder,result[1])
+        anti_url = os.path.join(setu_folder,result[2])
+        user = result[3]
+        date = result[4]
+        tag = result[5]
+        pixiv_tag = result[6]
+        if result[2] != '':
+            url = anti_url
         if tag =='':
-            tag = f'当前TAG为空，您可以发送修改TAG{row[0]}进行编辑~'
+            tag = f'当前TAG为空，您可以发送修改TAG{id}进行编辑~'
         else:
             tag = f'自定义TAG:{str(tag)}'
         await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' + f'\n上传日期{str(date)}'+f'\n支持ID、来源、TAG模糊查询哦~'))
     except CQHttpError:
-        sv.logger.error(f"发送图片{row[0]}失败")
+        sv.logger.error(f"发送图片{id}失败")
         try:
             await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
         except:
@@ -216,7 +247,7 @@ async def del_setu(bot, ev: CQEvent):
             for row in results:
                 url=row[0]
             if user != row[1]:
-                await bot.send(ev, "这张涩图不是您上传的哦~如果觉得不够涩请使用'申请删除涩图'指令")
+                await bot.send(ev, "这张涩图不是您上传的哦~如果觉得不够涩请使用'申请删除色图'指令")
                 return
             else:
                 os.remove(os.path.join(setu_folder, row[0]))
@@ -264,3 +295,44 @@ async def modify_tag(bot, ev: CQEvent):
     except Exception as e:
         print("yichang",e)
         await bot.send(ev, '请在指令后添加ID和TAG哦~以空格区分')
+
+@sv.on_prefix(('反和谐'))
+async def Anti_harmony(bot, ev: CQEvent):
+    test_conn()
+    if not str(ev.message).strip() or str(ev.message).strip()=="":
+        await bot.send(ev, '请输入要反和谐的图片')
+        return
+    try:
+        id=str(ev.message)
+        sql="SELECT url,anti_url FROM bot.localsetu where id = \'%s\' ORDER BY RAND() limit 1"%(id)
+        cursor.execute(sql)
+        results = cursor.fetchall()
+        if not results:
+           await bot.send(ev, '该图片不存在~~~')
+           return
+    #    print(results)
+        for row in results:
+            name=row[0]
+            url=os.path.join(setu_folder,row[0])
+            anti_url=row[1]
+        if anti_url and anti_url!="":
+            os.remove(os.path.join(setu_folder,anti_url))
+            await bot.send(ev, f'原反和谐文件已删除\\I I/')
+        tem_name_url=os.path.join(setu_folder,"Anti_harmony_"+name) #临时文件，因为后面计算MD5需要的是文件而不是图片
+        img=Image.open(url)
+        img=image_random_one_pixel(img)
+        img.save(tem_name_url,'jpeg',quality=75)
+        new_MD5=image2MD5(tem_name_url)   #格式是xx.image
+ #       await bot.send(ev, f'111111{tem_name_url}~')
+        new_url=os.path.join(setu_folder,new_MD5)
+   #     await bot.send(ev, f'222222{new_url}~')
+        os.rename(tem_name_url,new_url)
+        await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(new_url)}')) + '\n反和谐成功~')
+      #  await bot.send(ev, f'涩图{id}的TAG已更新为{tag}')
+        sql="update localsetu set anti_url = \'%s\' where id = \'%s\'"%(new_MD5,id)#保存反和谐后地址
+        cursor.execute(sql)
+        conn.commit()
+    except Exception as e:
+        print("yichang",e)
+        traceback.print_exc()
+        await bot.send(ev, '反和谐失败了呜呜呜~')

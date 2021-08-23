@@ -45,40 +45,49 @@ def get_pixiv_tag(pixiv_id):
 # get origin url
         json_result = api.illust_detail(pixiv_id)
         illust = json_result.illust.tags
+        r18 = 0
         pixiv_tag = ''
+        pixiv_tag_t = ''
+        if illust[0]['name'] == 'R-18':
+            r18 = 1
         for i in illust:
-            pixiv_tag = pixiv_tag.strip() + " "+ str(i['translated_name']).strip('None').replace("'","\\'") #拼接字符串 处理带引号sql
+            pixiv_tag = pixiv_tag.strip()+ " "+ str(i['name']).strip('R-18').replace("'","\\'")
+            pixiv_tag_t = pixiv_tag_t.strip() + " "+ str(i['translated_name']).strip('None').replace("'","\\'") #拼接字符串 处理带引号sql
         pixiv_tag = pixiv_tag.strip()
-        return pixiv_tag
+        pixiv_tag_t = pixiv_tag_t.strip()
+        return pixiv_tag,pixiv_tag_t,r18
     except Exception as e:
-        print("yichang",e)
-        return ''
+        print("yichang1",e)
+        return '','',0
 
 if __name__ == "__main__":
-    sql="SELECT id,url FROM bot.localsetu where pixiv_id is NULL limit 500"
+    #sql="SELECT id,url FROM bot.localsetu where pixiv_id is NULL limit 10"
+    sql="SELECT id,url FROM bot.localsetu ORDER BY id limit 1000"
     cursor.execute(sql)
     results = cursor.fetchall()
     url=''
     id = 0
     for row in results:
-        id = row[0]
+        id = row[0] #参数初始化
         url= setu_folder+'/'+row[1]
+        pixiv_tag=''
+        pixiv_tag_t=''
+        r18=0
         print(id)
         try:
             pixiv_id= get_pixiv_id(url)
             print(pixiv_id)
             try:
-                pixiv_tag=get_pixiv_tag(pixiv_id)
+                pixiv_tag,pixiv_tag_t,r18=get_pixiv_tag(pixiv_id)
             except Exception as e:
-                print("yichang",e)
-            pixiv_tag = pixiv_tag.strip('None')
+                print("yichang2",e)
+                continue
+            pixiv_tag_t = pixiv_tag_t.strip('None')
             print(pixiv_tag)
-
-            #if pixiv_tag == '':
-                #continue
-            sql="update localsetu set pixiv_id = %s , pixiv_tag = \'%s\' where id = %s"%(pixiv_id,pixiv_tag,id)
-            cursor.execute(sql)
-            conn.commit()
+            print(pixiv_tag_t)
         except Exception as e:
-            print("yichang",e)
+            print("yichang3",e)
             continue
+        sql="update localsetu set pixiv_id = %s , pixiv_tag = \'%s\' , pixiv_tag_t = \'%s\' , r18 = %s where id = %s"%(pixiv_id,pixiv_tag,pixiv_tag_t,r18,id)
+        cursor.execute(sql)
+        conn.commit()
