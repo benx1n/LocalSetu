@@ -199,29 +199,55 @@ async def give_setu(bot, ev:CQEvent):
 
 @sv.on_prefix(('删除涩图', '删除色图','删除男图'))
 async def del_setu(bot, ev: CQEvent):
-    if not priv.check_priv(ev, priv.SUPERUSER):
-        await bot.finish(ev, '抱歉，您非管理员，无此指令使用权限')
     id = str(ev.message).strip()
+    user = ev['user_id']
     if not id or id=="":
-        await bot.send(ev, '请在后面加上要删除的涩图序号~')
+        await bot.send(ev, "请在后面加上要删除的涩图序号~如果要删除非本人上传的涩图，请使用'申请删除色图'指令")
         return
-    try:
-        test_conn()
-        sql="select url from localsetu where id = %s"%id
-        cursor.execute(sql)
-        results = cursor.fetchall()
-        if not results:
-           await bot.send(ev, '请检查id是否正确~')
-        for row in results:
-            url=row[0]
-        os.remove(os.path.join(setu_folder, row[0]))
-        sql="delete from localsetu where id = %s"%id
-        cursor.execute(sql)
-        conn.commit()
-        await bot.send(ev, 'OvO~涩图删掉了~')
-    except Exception as e:
-        print("yichang",e)
-        await bot.send(ev, 'QAQ~删涩图的时候出现了问题，但一定不是我的问题~')
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        try:
+            test_conn()
+            sql="select url,user from localsetu where id = %s"%(id)
+            cursor.execute(sql)
+            results = cursor.fetchall()
+            if not results:
+                await bot.send(ev, '请检查id是否正确~')
+                return 
+            for row in results:
+                url=row[0]
+            if user != row[1]:
+                await bot.send(ev, "这张涩图不是您上传的哦~如果觉得不够涩请使用'申请删除涩图'指令")
+                return
+            else:
+                os.remove(os.path.join(setu_folder, row[0]))
+                sql="delete from localsetu where id = %s"%id
+                cursor.execute(sql)
+                conn.commit()
+                await bot.send(ev, 'OvO~涩图删掉了~')
+        except Exception as e:
+            print("yichang",e)
+            await bot.send(ev, 'QAQ~删涩图的时候出现了问题，但一定不是我的问题~')
+
+        
+    else:
+        try:
+            test_conn()
+            sql="select url from localsetu where id = %s"%id
+            cursor.execute(sql)
+            results = cursor.fetchall()
+            if not results:
+               await bot.send(ev, '请检查id是否正确~')
+               return
+            for row in results:
+                url=row[0]
+            os.remove(os.path.join(setu_folder, row[0]))
+            sql="delete from localsetu where id = %s"%id
+            cursor.execute(sql)
+            conn.commit()
+            await bot.send(ev, 'OvO~涩图删掉了~')
+        except Exception as e:
+            print("yichang",e)
+            await bot.send(ev, 'QAQ~删涩图的时候出现了问题，但一定不是我的问题~')
 
 @sv.on_prefix(('修改TAG','修改tag'))
 async def modify_tag(bot, ev: CQEvent):
