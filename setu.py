@@ -157,13 +157,13 @@ async def choose_setu(bot, ev):
             is_man = 1
         if id1==0:#带tag
             if searchtag.isdigit(): #id
-                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag FROM bot.localsetu where man = %s AND id = \'%s\' ORDER BY RAND() limit 1"%(is_man,searchtag)
+                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,verify FROM bot.localsetu where man = %s AND id = \'%s\' ORDER BY RAND() limit 1"%(is_man,searchtag)
             else:   #tag
-                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR pixiv_tag like \'%%%s%%\') ORDER BY RAND() limit 1"%(is_man,searchtag,searchtag)
+                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,verify FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR pixiv_tag like \'%%%s%%\' OR pixiv_tag_t like \'%%%s%%\') ORDER BY RAND() limit 1"%(is_man,searchtag,searchtag)
         if id1==1:#全随机
-            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"%is_man
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,verify FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"%is_man
         elif id1==2:#指定人
-            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag from localsetu where man = %s AND user = \'%s\' ORDER BY RAND() limit 1"%(is_man,str(user))
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_tm,verify from localsetu where man = %s AND user = \'%s\' ORDER BY RAND() limit 1"%(is_man,str(user))
         cursor.execute(sql)
         #conn.commit()
         result = cursor.fetchone()
@@ -177,8 +177,12 @@ async def choose_setu(bot, ev):
         date = result[4]
         tag = result[5]
         pixiv_tag = result[6]
+        verify = result[7]
         if result[2] != '':
             url = anti_url
+        if verify != 0:
+            await bot.send(ev,"该图正在等待审核，暂不支持查看~")
+            return
         if tag =='':
             tag = f'当前TAG为空，您可以发送修改TAG{id}进行编辑~'
         else:
@@ -220,7 +224,7 @@ async def give_setu(bot, ev:CQEvent):
                     #id=conn.insert_id()
                     id=cursor.lastrowid
                     conn.commit()
-                    await bot.send(ev, f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG')
+                    await bot.send(ev, f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{tag}')
                 else:
                     await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
     except Exception as e:
