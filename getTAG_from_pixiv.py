@@ -62,7 +62,7 @@ def get_pixiv_tag(pixiv_id):
 
 if __name__ == "__main__":
     #sql="SELECT id,url FROM bot.localsetu where pixiv_id is NULL limit 10"
-    sql="SELECT id,url FROM bot.localsetu ORDER BY id limit 1000"
+    sql="SELECT id,url FROM bot.localsetu where pixiv_id is NULL ORDER BY id limit 1000"
     cursor.execute(sql)
     results = cursor.fetchall()
     url=''

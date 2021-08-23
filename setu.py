@@ -157,13 +157,13 @@ async def choose_setu(bot, ev):
             is_man = 1
         if id1==0:#带tag
             if searchtag.isdigit(): #id
-                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,verify FROM bot.localsetu where man = %s AND id = \'%s\' ORDER BY RAND() limit 1"%(is_man,searchtag)
+                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s AND id = \'%s\' ORDER BY RAND() limit 1"%(is_man,searchtag)
             else:   #tag
-                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,verify FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR pixiv_tag like \'%%%s%%\' OR pixiv_tag_t like \'%%%s%%\') ORDER BY RAND() limit 1"%(is_man,searchtag,searchtag)
+                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR pixiv_tag like \'%%%s%%\' OR pixiv_tag_t like \'%%%s%%\') ORDER BY RAND() limit 1"%(is_man,searchtag,searchtag,searchtag)
         if id1==1:#全随机
-            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,verify FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"%is_man
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"%is_man
         elif id1==2:#指定人
-            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_tm,verify from localsetu where man = %s AND user = \'%s\' ORDER BY RAND() limit 1"%(is_man,str(user))
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_tm,pixiv_id,verify from localsetu where man = %s AND user = \'%s\' ORDER BY RAND() limit 1"%(is_man,str(user))
         cursor.execute(sql)
         #conn.commit()
         result = cursor.fetchone()
@@ -177,7 +177,8 @@ async def choose_setu(bot, ev):
         date = result[4]
         tag = result[5]
         pixiv_tag = result[6]
-        verify = result[7]
+        pixiv_id = result[7]
+        verify = result[8]
         if result[2] != '':
             url = anti_url
         if verify != 0:
@@ -187,7 +188,11 @@ async def choose_setu(bot, ev):
             tag = f'当前TAG为空，您可以发送修改TAG{id}进行编辑~'
         else:
             tag = f'自定义TAG:{str(tag)}'
-        await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' + f'\n上传日期{str(date)}'+f'\n支持ID、来源、TAG模糊查询哦~'))
+        if pixiv_id != 0 :
+            pixiv_url = "https://pixiv.net/i/"+ str(pixiv_id)
+            await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n{pixiv_url}' +f'\n支持ID、来源、TAG模糊查询哦~'))
+        else:
+            await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n支持ID、来源、TAG模糊查询哦~'))
     except CQHttpError:
         sv.logger.error(f"发送图片{id}失败")
         try:
@@ -340,3 +345,15 @@ async def Anti_harmony(bot, ev: CQEvent):
         print("yichang",e)
         traceback.print_exc()
         await bot.send(ev, '反和谐失败了呜呜呜~')
+
+@sv.on_prefix(('申请删除色图'))
+async def Anti_harmony(bot, ev: CQEvent):
+    await bot.send(ev, '开发中')
+
+@sv.on_prefix(('审核色图'))
+async def Anti_harmony(bot, ev: CQEvent):
+    await bot.send(ev, '开发中')
+
+@sv.on_prefix(('色图检测'))
+async def Anti_harmony(bot, ev: CQEvent):
+    await bot.send(ev, '开发中')
