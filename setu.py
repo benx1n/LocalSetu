@@ -95,6 +95,11 @@ async def download(url, path):
             with open(path, 'wb') as f:
                 f.write(content)
 
+def new_download(url, path):
+    img_file = requests.get(url)
+    with open(path, 'wb') as f:
+        f.write(img_file.content)
+    return url
 #下面的函数随机更改图片的某个像素值，用于反和谐
 def image_random_one_pixel(img1):  
     w,h=img1.size
@@ -143,14 +148,14 @@ def get_pixiv_id(url):
     pixiv_id = 0
     similarity = 0
     saucenao = SauceNAO(api_key=api_key,**_REQUESTS_KWARGS)
-    print('seru138  url:',url)
+    #print('seru138  url:',url)
     res = saucenao.search(url)
-    print('res',res)
-    print(res.raw[0])
+    #print('res',res)
+    #print(res.raw[0])
     pixiv_id = res.raw[0].pixiv_id
-    print(pixiv_id)
+    #print(pixiv_id)
     similarity = res.raw[0].similarity
-    print(similarity)
+    #print(similarity)
     if similarity < 60 or pixiv_id == '' or not pixiv_id:
         print(res.raw[0].similarity)
         pixiv_id = 0
@@ -174,7 +179,7 @@ def get_pixiv_tag(pixiv_id):
             pixiv_tag_t = pixiv_tag_t.strip() + " "+ str(i['translated_name']).strip('None').replace("'","\\'") #拼接字符串 处理带引号sql
         pixiv_tag = pixiv_tag.strip()
         pixiv_tag_t = pixiv_tag_t.strip()
-        print(pixiv_tag_t)
+        #print(pixiv_tag_t)
         return pixiv_tag,pixiv_tag_t,r18
     except Exception as e:
         print("yichang1",e)
@@ -339,7 +344,8 @@ async def give_setu(bot, ev:CQEvent):
         tag = ""
         is_man = 0
         tasks1=[]
-        threads = []
+        threads1 = []
+        threads2 = []
         if ev['prefix'] == '上传男图':
             is_man = 1
         for i,seg in enumerate(ev.message):
@@ -357,18 +363,21 @@ async def give_setu(bot, ev:CQEvent):
                     cursor.execute(sql)
                     id=cursor.lastrowid
                     conn.commit()
-                    tasks1.append(download(img_url, os.path.join(setu_folder,setu_name)))
-                    tasks1.append(bot.send(ev, f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}'))
-                    threads.append(MyThread(verify,(id,img_url),verify.__name__))
+                    threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
+                    await bot.send(ev, f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
+                    threads2.append(MyThread(verify,(id,img_url),verify.__name__))
                 else:
                     await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
-        await asyncio.gather(*tasks1)
-        for t in threads:
+        for t in threads1:
+            t.setDaemon(True)
+            t.start()      
+        for t in threads2:
             t.setDaemon(True)
             t.start()
-        for t in threads:
+        for t in threads2:
             t.join()
             print(t.getResult())
+            print(type(t.getResult()))
             id,verifynum,pixiv_id,img_url= t.getResult()
             if not verifynum:
                 await bot.send(ev, f'id:{id}上传成功，自动审核通过\nPixivID:{pixiv_id}')
@@ -384,7 +393,7 @@ async def give_setu(bot, ev:CQEvent):
 async def del_setu(bot, ev: CQEvent):
     id = str(ev.message).strip()
     user = ev['user_id']
-    if not id or id=="":
+    if not id or id=="" or not id.isdigit():
         await bot.send(ev, "请在后面加上要删除的涩图序号~如果要删除非本人上传的涩图，请使用'申请删除色图'指令")
         return
     if not priv.check_priv(ev, priv.SUPERUSER):
@@ -709,5 +718,58 @@ async def verify_setu_new(bot, ev: CQEvent):
             await bot.send(ev, 'QAQ~审核的时候出现了问题，但一定不是我的问题~')
     await bot.send(ev, '审核结束~')
     return
-
+异步+多线程方法
+@sv.on_prefix(('上传色图','上传男图'))
+async def give_setu(bot, ev:CQEvent):
+    try:
+        print(ev)
+        test_conn()
+        if not str(ev.message).strip() or str(ev.message).strip()=="":
+            await bot.send(ev, '发涩图发涩图~')
+            return
+        tag = ""
+        is_man = 0
+        tasks1=[]
+        threads = []
+        if ev['prefix'] == '上传男图':
+            is_man = 1
+        for i,seg in enumerate(ev.message):
+            if seg.type == 'text':
+                tag=str(seg).strip()
+            elif seg.type == 'image':
+                img_url = seg.data['url']
+                setu_name = seg.data['file']
+                user = str(ev['user_id'])
+                sql="SELECT id FROM localsetu where url = '%s'"%str(seg.data['file'])
+                cursor.execute(sql)
+                result = cursor.fetchone()
+                if not result:
+                    sql="INSERT IGNORE INTO localsetu (id,url,user,date,tag,man) VALUES (NULL,\'%s\',%s,NOW(),\'%s\',%s)"%(setu_name,user,tag,is_man)
+                    cursor.execute(sql)
+                    id=cursor.lastrowid
+                    conn.commit()
+                    tasks1.append(download(img_url, os.path.join(setu_folder,setu_name)))
+                    tasks1.append(bot.send(ev, f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}'))
+                    threads.append(MyThread(verify,(id,img_url),verify.__name__))
+                else:
+                    await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
+        start2 = time.time()
+        await asyncio.gather(*tasks1)
+        for t in threads:
+            t.setDaemon(True)
+            t.start()
+        for t in threads:
+            t.join()
+            print(t.getResult())
+            id,verifynum,pixiv_id,img_url= t.getResult()
+            if not verifynum:
+                await bot.send(ev, f'id:{id}上传成功，自动审核通过\nPixivID:{pixiv_id}')
+            else:
+                await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
+                await bot.send_private_msg(self_id=ev.self_id, user_id=1119809439, message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
+                await bot.send_private_msg(self_id=ev.self_id, user_id=635040951, message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
+        print("usetime22222222222222222222222222:%f s"%(time.time()-start2))
+    except Exception as e:
+        print("yichang",e)
+        await bot.send(ev, 'wuwuwu~上传失败了~')
     '''
