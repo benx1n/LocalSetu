@@ -19,6 +19,7 @@ from pixivpy3 import *
 from PicImageSearch import SauceNAO
 from time import ctime,sleep
 from nonebot.exceptions import CQHttpError
+import hoshino
 from hoshino import R, Service, priv
 from hoshino.util import FreqLimiter, DailyNumberLimiter
 from hoshino.typing import CQEvent, MessageSegment
@@ -130,12 +131,12 @@ def verify(id,url):
     else:
         pixiv_tag,pixiv_tag_t,r18=get_pixiv_tag(pixiv_id)
         sql = "update localsetu set pixiv_id = \'%s\',pixiv_tag = \'%s\',pixiv_tag_t = \'%s\',r18 = \'%s\' where id = \'%s\'"%(pixiv_id,pixiv_tag,pixiv_tag_t,r18,id)
-    #lock=threading.Lock()
+    #lock=threading.Lock()#锁，暂时改为新建连接
     #lock.acquire()
     cursor1.execute(sql)    
     #lock.release()
     print("usetime:%f s"%(time.time()-start))
-    return id,verify,pixiv_id
+    return id,verify,pixiv_id,url
 
 #获取图片pixiv_id
 def get_pixiv_id(url):
@@ -270,12 +271,12 @@ async def choose_setu(bot, ev):
         pixiv_tag = result[6]
         pixiv_id = result[7]
         verify = result[8]
-        if result[2] != '':
+        if result[2]:
             url = anti_url
-        if verify != 0:
+        if verify:
             await bot.send(ev,"该图正在等待审核，暂不支持查看~")
             return
-        if tag =='':
+        if tag:
             tag = f'当前TAG为空，您可以发送修改TAG{id}进行编辑~'
         else:
             tag = f'自定义TAG:{str(tag)}'
@@ -368,11 +369,12 @@ async def give_setu(bot, ev:CQEvent):
         for t in threads:
             t.join()
             print(t.getResult())
-            id,verifynum,pixiv_id= t.getResult()
-            if verifynum == 0:
+            id,verifynum,pixiv_id,img_url= t.getResult()
+            if not verifynum:
                 await bot.send(ev, f'id:{id}上传成功，自动审核通过\nPixivID:{pixiv_id}')
-            elif verifynum == 1:
+            else:
                 await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
+                await bot.send_private_msg(self_id=ev.self_id, user_id=hoshino.config.SUPERUSERS[0], message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
     except Exception as e:
         print("yichang",e)
         await bot.send(ev, 'wuwuwu~上传失败了~')
@@ -407,8 +409,6 @@ async def del_setu(bot, ev: CQEvent):
         except Exception as e:
             print("yichang",e)
             await bot.send(ev, 'QAQ~删涩图的时候出现了问题，但一定不是我的问题~')
-
-        
     else:
         try:
             test_conn()
@@ -487,8 +487,34 @@ async def Anti_harmony(bot, ev: CQEvent):
         await bot.send(ev, '反和谐失败了呜呜呜~')
 
 @sv.on_prefix(('申请删除色图'))
-async def Anti_harmony(bot, ev: CQEvent):
-    await bot.send(ev, '开发中')
+async def apply_delete(bot, ev: CQEvent):
+    id = str(ev.message).strip()
+    user = ev['user_id']
+    if not id or id=="":
+        await bot.send(ev, "请在后面加上要申请删除的涩图序号~")
+        return
+    try:
+        test_conn()
+        sql="select verify,url from localsetu where id = %s"%id
+        cursor.execute(sql)
+        results = cursor.fetchone()
+        if not results:
+           await bot.send(ev, '请检查id是否正确~')
+           return
+        verify=results[0]
+        url = os.path.join(setu_folder,results[1])
+        if verify:
+            await bot.send(ev, '该图正在审核哦~')
+            return
+        sql="update localsetu set verify = 2 where id = \'%s\'"%id
+        cursor.execute(sql)
+        conn.commit()
+        await bot.send(ev, '提交审核成功，请耐心等待哦~')
+        print(type(hoshino.config.SUPERUSERS[0]))
+        await bot.send_private_msg(self_id=ev.self_id, user_id=1119809439,message=f'有新的删除申请,id:{id}'+str(MessageSegment.image(f'file:///{os.path.abspath(url)}')))
+    except Exception as e:
+        print("yichang",e)
+        await bot.send(ev, 'QAQ~出了点小问题,说不定过一会儿就能恢复')
 
 class Verify:
     def __init__(self):
@@ -499,7 +525,7 @@ class Verify:
 ve=Verify()
 
 @sv.on_fullmatch(('审核色图'))
-async def test_setu(bot, ev: CQEvent):
+async def verify_setu(bot, ev: CQEvent):
     if not priv.check_priv(ev, priv.SUPERUSER):
         await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
         return
@@ -533,8 +559,8 @@ async def test_setu(bot, ev: CQEvent):
     await bot.send(ev, '审核结束~')
     return
 
-@sv.on_fullmatch(('通过'))
-async def A31nti_harmony(bot, ev: CQEvent):
+@sv.on_fullmatch(('保留'))
+async def verify_complete(bot, ev: CQEvent):
     if ve.switch==0:
         return
     ve.state=1
@@ -548,8 +574,8 @@ async def A31nti_harmony(bot, ev: CQEvent):
     except:
         await bot.send(ev, '本bot是不会让你审核通过的！！！')
     return
-@sv.on_fullmatch(('拒绝'))
-async def A123nti_harmony(bot, ev: CQEvent):
+@sv.on_fullmatch(('删除'))
+async def verify_delete(bot, ev: CQEvent):
     if ve.switch==0:
         return
     ve.switch=0
@@ -564,6 +590,27 @@ async def A123nti_harmony(bot, ev: CQEvent):
     except:
         await bot.send(ev, '我觉得这图片挺涩的~')
     return
+
+@sv.on_prefix('审核保留')
+async def quick_verify(bot, ev:CQEvent):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.send(ev,'你谁啊你，不是管理员没资格审核色图哦~')
+        return
+    id = str(ev.message).strip()
+    user = ev['user_id']
+    if not id:
+        await bot.send(ev, "请在后面加上要通过的涩图序号f~")
+        return
+    try:
+        test_conn()
+        sql="update localsetu set verify=0 where id = \'%s\'"%(id)
+        cursor.execute(sql)
+        conn.commit()
+        await bot.send(ev, f'色图{id}审核通过')
+    except Exception as e:
+        await bot.send(ev, "出了点小问题，但一定不是我的问题~")
+        print("yichang",e)
+
 
 ''' 旧异步方法 弃用
 @sv.on_prefix(('色图检测'))
