@@ -374,7 +374,8 @@ async def give_setu(bot, ev:CQEvent):
                 await bot.send(ev, f'id:{id}上传成功，自动审核通过\nPixivID:{pixiv_id}')
             else:
                 await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
-                await bot.send_private_msg(self_id=ev.self_id, user_id=hoshino.config.SUPERUSERS[0], message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
+                await bot.send_private_msg(self_id=ev.self_id, user_id=1119809439, message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
+                await bot.send_private_msg(self_id=ev.self_id, user_id=635040951, message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
     except Exception as e:
         print("yichang",e)
         await bot.send(ev, 'wuwuwu~上传失败了~')
@@ -512,6 +513,7 @@ async def apply_delete(bot, ev: CQEvent):
         await bot.send(ev, '提交审核成功，请耐心等待哦~')
         print(type(hoshino.config.SUPERUSERS[0]))
         await bot.send_private_msg(self_id=ev.self_id, user_id=1119809439,message=f'有新的删除申请,id:{id}'+str(MessageSegment.image(f'file:///{os.path.abspath(url)}')))
+        await bot.send_private_msg(self_id=ev.self_id, user_id=635040951,message=f'有新的删除申请,id:{id}'+str(MessageSegment.image(f'file:///{os.path.abspath(url)}')))
     except Exception as e:
         print("yichang",e)
         await bot.send(ev, 'QAQ~出了点小问题,说不定过一会儿就能恢复')
@@ -519,79 +521,71 @@ async def apply_delete(bot, ev: CQEvent):
 class Verify:
     def __init__(self):
         self.url=""     #审核的色图url
-        self.state=0    #控制多图审核的
         self.switch=0   #当前是否处于审核状态 0 不处于 1处于
         self.id=-1     #审核的色图id
+        self.sql_state=0 #是否执行过sql
+        self.flag=0 #执行次数
 ve=Verify()
 
-@sv.on_fullmatch(('审核色图'))
+@sv.on_fullmatch(('审核色图上传','审核色图删除'))
 async def verify_setu(bot, ev: CQEvent):
     if not priv.check_priv(ev, priv.SUPERUSER):
         await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
         return
-    else:
-        ve.state=1
-        try:
-            while ve.state:
-                ve.state=0
+    if ev['prefix'] == '审核色图上传':
+        sql="select url,user,date,id from localsetu where verify=1 order by rand() limit 1"
+    elif ev['prefix'] == '审核色图删除':
+        sql="select url,user,date,id from localsetu where verify=2 order by rand() limit 1"
+    ve.sql_state,ve.flag=0,0
+    try:
+        while ve.flag < 40:
+            ve.flag = ve.flag + 1
+            if not ve.sql_state:
                 test_conn()
-                sql="select url,user,date,id from localsetu where verify=1 order by rand() limit 1"
                 cursor.execute(sql)
-                results = cursor.fetchall()
+                results = cursor.fetchone()
                 if not results:
                     await bot.send(ev, '当前没有要审核图片哦，摸鱼大胜利~')
-                    return 
-                ve.switch=1
-                for row in results:
-                    url=os.path.join(setu_folder,row[0])
-                    user=row[1]
-                    date=row[2]
-                    id=row[3]
-                ve.url=url
-                ve.id=id
-                await bot.send(ev, '当前审核的图片为'+str(MessageSegment.image(f'file:///{os.path.abspath(url)}'))+f'ID：{id}\n来源为[CQ:at,qq={str(user)}]\n上传时间:{date}')
-                await asyncio.sleep(20)
-                await bot.send(ev, '二十秒过去了，你爬吧~')
-                ve.switch=0
-        except Exception as e:
-            print("yichang",e)
-            await bot.send(ev, 'QAQ~审核的时候出现了问题，但一定不是我的问题~')
-    await bot.send(ev, '审核结束~')
-    return
+                    return                                 
+                ve.url=os.path.join(setu_folder,results[0])
+                user=results[1]
+                date=results[2]
+                ve.id=results[3]
+                await bot.send(ev, '当前审核的图片为'+str(MessageSegment.image(f'file:///{os.path.abspath(ve.url)}'))+f'ID：{ve.id}\n来源为[CQ:at,qq={str(user)}]\n上传时间:{date}')
+                ve.sql_state,ve.switch = 1,1
+            await asyncio.sleep(0.5)
+        await bot.send(ev, '20秒过去了，审核结束~')
+        return
+    except Exception as e:
+        print("yichang",e)
+    await bot.send(ev, 'QAQ~审核的时候出现了问题，但一定不是我的问题~')
 
-@sv.on_fullmatch(('保留'))
+@sv.on_fullmatch(('保留','删除','退出审核'))
 async def verify_complete(bot, ev: CQEvent):
-    if ve.switch==0:
+    if not ve.switch:
         return
-    ve.state=1
-    ve.switch=0
     try:
         test_conn()
-        sql="update localsetu set verify=0 where id = \'%s\'"%(ve.id)
-        cursor.execute(sql)
-        conn.commit()
-        await bot.send(ev, '当前图片审核通过'+str(MessageSegment.image(f'file:///{os.path.abspath(ve.url)}'))+f'id为{ve.id}')
+        if ev['prefix'] == '保留':
+            sql="update localsetu set verify=0 where id = \'%s\'"%(ve.id)
+            cursor.execute(sql)
+            conn.commit()
+            await bot.send(ev, '当前图片审核通过'+str(MessageSegment.image(f'file:///{os.path.abspath(ve.url)}'))+f'id为{ve.id}')
+        elif ev['prefix'] == '删除':
+            os.remove(ve.url)
+            sql="delete from localsetu where id = %s"%ve.id
+            cursor.execute(sql)
+            conn.commit()
+            await bot.send(ev, 'OvO~不合格的涩图删掉了~')
+        elif ev['prefix'] == '退出审核':
+            ve.flag = 40
+            return 
+        ve.switch,ve.flag,ve.sql_state= 0,0,0
     except:
-        await bot.send(ev, '本bot是不会让你审核通过的！！！')
-    return
-@sv.on_fullmatch(('删除'))
-async def verify_delete(bot, ev: CQEvent):
-    if ve.switch==0:
-        return
-    ve.switch=0
-    ve.state=1
-    try:
-        test_conn()
-        os.remove(ve.url)
-        sql="delete from localsetu where id = %s"%ve.id
-        cursor.execute(sql)
-        conn.commit()
-        await bot.send(ev, 'OvO~不合格的涩图删掉了~')
-    except:
-        await bot.send(ev, '我觉得这图片挺涩的~')
+        await bot.send(ev, '出了点小问题，其实我觉得这图片挺涩的~')
     return
 
-@sv.on_prefix('审核保留')
+@sv.on_prefix('快速审核')
 async def quick_verify(bot, ev:CQEvent):
     if not priv.check_priv(ev, priv.SUPERUSER):
         await bot.send(ev,'你谁啊你，不是管理员没资格审核色图哦~')
@@ -678,4 +672,42 @@ async def give_setu(bot, ev:CQEvent):
         cursor.execute(sql)
         conn.commit()
     await bot.send(ev,pixiv_tag)
-    await bot.send(ev,pixiv_tag_t)'''
+    await bot.send(ev,pixiv_tag_t)
+    
+
+@sv.on_fullmatch(('开发审核色图'))
+async def verify_setu_new(bot, ev: CQEvent):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
+        return
+    else:
+        ve.state=1
+        try:
+            while ve.state:
+                ve.state=0
+                test_conn()
+                sql="select url,user,date,id from localsetu where verify=1 order by rand() limit 1"
+                cursor.execute(sql)
+                results = cursor.fetchall()
+                if not results:
+                    await bot.send(ev, '当前没有要审核图片哦，摸鱼大胜利~')
+                    return 
+                ve.switch=1
+                for row in results:
+                    url=os.path.join(setu_folder,row[0])
+                    user=row[1]
+                    date=row[2]
+                    id=row[3]
+                ve.url=url
+                ve.id=id
+                await bot.send(ev, '当前审核的图片为'+str(MessageSegment.image(f'file:///{os.path.abspath(url)}'))+f'ID：{id}\n来源为[CQ:at,qq={str(user)}]\n上传时间:{date}')
+                await asyncio.sleep(20)
+                await bot.send(ev, '二十秒过去了，你爬吧~')
+                ve.switch=0
+        except Exception as e:
+            print("yichang",e)
+            await bot.send(ev, 'QAQ~审核的时候出现了问题，但一定不是我的问题~')
+    await bot.send(ev, '审核结束~')
+    return
+
+    '''
