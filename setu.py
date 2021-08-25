@@ -2,6 +2,7 @@ import os
 import json
 import random
 import re
+from sys import flags
 import traceback
 from nonebot.typing import State_T
 from numpy.lib.function_base import quantile
@@ -118,6 +119,8 @@ def image2MD5(filename):
 
 #图片检测相似度，自动获取TAG
 def verify(id,url):
+    conn1= pymysql.connect(host=host,user=user,password=password,database=database,charset='utf8',autocommit = 1)
+    cursor1 = conn1.cursor()
     start = time.time()
     verify = 0
     pixiv_id,similarity=get_pixiv_id(url)
@@ -127,7 +130,10 @@ def verify(id,url):
     else:
         pixiv_tag,pixiv_tag_t,r18=get_pixiv_tag(pixiv_id)
         sql = "update localsetu set pixiv_id = \'%s\',pixiv_tag = \'%s\',pixiv_tag_t = \'%s\',r18 = \'%s\' where id = \'%s\'"%(pixiv_id,pixiv_tag,pixiv_tag_t,r18,id)
-    cursor.execute(sql)    
+    #lock=threading.Lock()
+    #lock.acquire()
+    cursor1.execute(sql)    
+    #lock.release()
     print("usetime:%f s"%(time.time()-start))
     return id,verify,pixiv_id
 
@@ -285,7 +291,7 @@ async def choose_setu(bot, ev):
         except:
             pass
 
-
+'''旧上传方法，已弃用
 @sv.on_prefix(('上传色图','上传男图'))
 async def give_setu(bot, ev:CQEvent):
     try:
@@ -320,7 +326,56 @@ async def give_setu(bot, ev:CQEvent):
     except Exception as e:
         print("yichang",e)
         await bot.send(ev, 'wuwuwu~上传失败了~')
-
+'''
+@sv.on_prefix(('上传色图','上传男图'))
+async def give_setu(bot, ev:CQEvent):
+    try:
+        print(ev)
+        test_conn()
+        if not str(ev.message).strip() or str(ev.message).strip()=="":
+            await bot.send(ev, '发涩图发涩图~')
+            return
+        tag = ""
+        is_man = 0
+        tasks1=[]
+        threads = []
+        if ev['prefix'] == '上传男图':
+            is_man = 1
+        for i,seg in enumerate(ev.message):
+            if seg.type == 'text':
+                tag=str(seg).strip()
+            elif seg.type == 'image':
+                img_url = seg.data['url']
+                setu_name = seg.data['file']
+                user = str(ev['user_id'])
+                sql="SELECT id FROM localsetu where url = '%s'"%str(seg.data['file'])
+                cursor.execute(sql)
+                result = cursor.fetchone()
+                if not result:
+                    sql="INSERT IGNORE INTO localsetu (id,url,user,date,tag,man) VALUES (NULL,\'%s\',%s,NOW(),\'%s\',%s)"%(setu_name,user,tag,is_man)
+                    cursor.execute(sql)
+                    id=cursor.lastrowid
+                    conn.commit()
+                    tasks1.append(download(img_url, os.path.join(setu_folder,setu_name)))
+                    tasks1.append(bot.send(ev, f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}'))
+                    threads.append(MyThread(verify,(id,img_url),verify.__name__))
+                else:
+                    await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
+        await asyncio.gather(*tasks1)
+        for t in threads:
+            t.setDaemon(True)
+            t.start()
+        for t in threads:
+            t.join()
+            print(t.getResult())
+            id,verifynum,pixiv_id= t.getResult()
+            if verifynum == 0:
+                await bot.send(ev, f'id:{id}上传成功，自动审核通过\nPixivID:{pixiv_id}')
+            elif verifynum == 1:
+                await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
+    except Exception as e:
+        print("yichang",e)
+        await bot.send(ev, 'wuwuwu~上传失败了~')
 
 @sv.on_prefix(('删除涩图', '删除色图','删除男图'))
 async def del_setu(bot, ev: CQEvent):
@@ -435,10 +490,82 @@ async def Anti_harmony(bot, ev: CQEvent):
 async def Anti_harmony(bot, ev: CQEvent):
     await bot.send(ev, '开发中')
 
-@sv.on_prefix(('审核色图'))
-async def Anti_harmony(bot, ev: CQEvent):
-    await bot.send(ev, '开发中')
+class Verify:
+    def __init__(self):
+        self.url=""     #审核的色图url
+        self.state=0    #控制多图审核的
+        self.switch=0   #当前是否处于审核状态 0 不处于 1处于
+        self.id=-1     #审核的色图id
+ve=Verify()
 
+@sv.on_fullmatch(('审核色图'))
+async def test_setu(bot, ev: CQEvent):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
+        return
+    else:
+        ve.state=1
+        try:
+            while ve.state:
+                ve.state=0
+                test_conn()
+                sql="select url,user,date,id from localsetu where verify=1 order by rand() limit 1"
+                cursor.execute(sql)
+                results = cursor.fetchall()
+                if not results:
+                    await bot.send(ev, '当前没有要审核图片哦，摸鱼大胜利~')
+                    return 
+                ve.switch=1
+                for row in results:
+                    url=os.path.join(setu_folder,row[0])
+                    user=row[1]
+                    date=row[2]
+                    id=row[3]
+                ve.url=url
+                ve.id=id
+                await bot.send(ev, '当前审核的图片为'+str(MessageSegment.image(f'file:///{os.path.abspath(url)}'))+f'ID：{id}\n来源为[CQ:at,qq={str(user)}]\n上传时间:{date}')
+                await asyncio.sleep(20)
+                await bot.send(ev, '二十秒过去了，你爬吧~')
+                ve.switch=0
+        except Exception as e:
+            print("yichang",e)
+            await bot.send(ev, 'QAQ~审核的时候出现了问题，但一定不是我的问题~')
+    await bot.send(ev, '审核结束~')
+    return
+
+@sv.on_fullmatch(('通过'))
+async def A31nti_harmony(bot, ev: CQEvent):
+    if ve.switch==0:
+        return
+    ve.state=1
+    ve.switch=0
+    try:
+        test_conn()
+        sql="update localsetu set verify=0 where id = \'%s\'"%(ve.id)
+        cursor.execute(sql)
+        conn.commit()
+        await bot.send(ev, '当前图片审核通过'+str(MessageSegment.image(f'file:///{os.path.abspath(ve.url)}'))+f'id为{ve.id}')
+    except:
+        await bot.send(ev, '本bot是不会让你审核通过的！！！')
+    return
+@sv.on_fullmatch(('拒绝'))
+async def A123nti_harmony(bot, ev: CQEvent):
+    if ve.switch==0:
+        return
+    ve.switch=0
+    ve.state=1
+    try:
+        test_conn()
+        os.remove(ve.url)
+        sql="delete from localsetu where id = %s"%ve.id
+        cursor.execute(sql)
+        conn.commit()
+        await bot.send(ev, 'OvO~不合格的涩图删掉了~')
+    except:
+        await bot.send(ev, '我觉得这图片挺涩的~')
+    return
+
+''' 旧异步方法 弃用
 @sv.on_prefix(('色图检测'))
 async def give_setu(bot, ev:CQEvent):
     try:
@@ -469,7 +596,7 @@ async def give_setu(bot, ev:CQEvent):
                     conn.commit()
                     tasks1.append(download(img_url, os.path.join(setu_folder,setu_name)))
                     await bot.send(ev, f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
-                    tasks2.append(get_pixiv_id(id,img_url))
+                    tasks2.append(get_pixiv_id(img_url))
                 else:
                     await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
         await asyncio.gather(*tasks1)
@@ -479,60 +606,11 @@ async def give_setu(bot, ev:CQEvent):
             await bot.send(ev, f'涩图收到了~id为{result[0]}\nPixivTAG:{result[3]}\n删除请发送删除色图{result[0]}')
 
     except Exception as e:
-        print("yichang",e)
-        await bot.send(ev, 'wuwuwu~上传失败了~')
-
-@sv.on_prefix(('多线程测试'))
-async def give_setu(bot, ev:CQEvent):
-    try:
-        print(ev)
-        test_conn()
-        if not str(ev.message).strip() or str(ev.message).strip()=="":
-            await bot.send(ev, '发涩图发涩图~')
-            return
-        tag = ""
-        is_man = 0
-        tasks1=[]
-        threads = []
-        if ev['prefix'] == '上传男图':
-            is_man = 1
-        for i,seg in enumerate(ev.message):
-            if seg.type == 'text':
-                tag=str(seg).strip()
-            elif seg.type == 'image':
-                img_url = seg.data['url']
-                setu_name = seg.data['file']
-                sql="SELECT id FROM localsetu where url = '%s'"%str(seg.data['file'])
-                cursor.execute(sql)
-                result = cursor.fetchone()
-                if not result:
-                    sql="INSERT IGNORE INTO localsetu (id,url,user,date,tag,man) VALUES (NULL,\'%s\',%s,NOW(),\'%s\',%s)"%(setu_name,str(ev['user_id']),tag,is_man)
-                    cursor.execute(sql)
-                    id=cursor.lastrowid
-                    conn.commit()
-                    tasks1.append(download(img_url, os.path.join(setu_folder,setu_name)))
-                    tasks1.append(bot.send(ev, f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}'))
-                    threads.append(MyThread(verify,(id,img_url),verify.__name__))
-                else:
-                    await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
-        await asyncio.gather(*tasks1)
-        for t in threads:
-            t.setDaemon(True)
-            t.start()
-        for t in threads:
-            t.join()
-            print(t.getResult())
-            id,verifynum,pixiv_id= t.getResult()
-            if verifynum == 0:
-                await bot.send(ev, f'id:{id}上传成功，自动审核通过\nPixivID:{pixiv_id}')
-            elif verifynum == 1:
-                await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~')
-    except Exception as e:
-        print("yichang",e)
+        print("色图检测异常：",e)
         await bot.send(ev, 'wuwuwu~上传失败了~')
 
 
-    ''' id = 716
+ id = 716
         pixiv_tag=''
         pixiv_tag_t=''
         r18=0
