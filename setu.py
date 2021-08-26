@@ -62,7 +62,6 @@ class MyThread(threading.Thread):
     def getResult(self):
         return self.res
 
-
 sv = Service('setu', manage_priv=priv.SUPERUSER, enable_on_default=True, visible=False)
 setu_folder = R.get('img/setu/').path
 conn = pymysql.connect(host=host,user=user,password=password,database=database,charset='utf8',autocommit = 1)
@@ -73,7 +72,7 @@ def test_conn():
     except:
         conn = pymysql.connect(host=host,user=user,password=password,database=database,charset='utf8',autocommit = 1)
         cursor = conn.cursor()
-
+'''
 def setu_gener():
     while True:
         filelist = os.listdir(setu_folder)
@@ -81,11 +80,24 @@ def setu_gener():
         for filename in filelist:
             if os.path.isfile(os.path.join(setu_folder, filename)):
                 yield R.get('img/setu/', filename)
+'''
+#setu_gener = setu_gener()
+SETU_help="""LocalSetu涩图帮助指南：
+- -kkqyxp/kkntxp[keyword]：随机发送色图/男同图，其中keyword为可选参数，支持ID、@上传者、TAG模糊查询
+- -上传色/男图[TAG][图片][TAG][图片][TAG][图片]，其中TAG为可选参数，可跟多张图片
+- -上传色/男图[无参数]：进入上传模式，该模式下用户发送的所有图片均视为上传，无操作20秒后自动退出
+- -删除色图[ID]：删除指定ID色图，非审核人员仅可删除本人上传的色图，删除他人色图请使用'申请删除色图'
+- -申请删除色图[ID]:提交色图删除申请，自动推送至审核人员
+- -修改TAG[ID][TAG]：修改指定ID的自定义TAG
+- -反和谐[ID]：色图被TX屏蔽时使用该指令，进行一次反和谐，后续发送色图均使用反和谐后文件
+- -github链接：https://github.com/benx1n/LocalSetu 有问题欢迎提issue
+"""
+@sv.on_fullmatch(('色图帮助','setuhelp','色图帮助','setu帮助','LocalSetu'))
+async def verify_setu_new(bot, ev: CQEvent):
+    await bot.send(ev,SETU_help)
 
-setu_gener = setu_gener()
-
-def get_setu():
-    return setu_gener.__next__()
+#def get_setu():
+ #   return setu_gener.__next__()
 # 异步下载
 async def download(url, path):
     timeout = aiohttp.ClientTimeout(total=60)
@@ -305,8 +317,6 @@ async def choose_setu(bot, ev):
         pixiv_id = result[7]
         pixiv_setu_name = os.path.join(setu_folder,result[8])
         verify = result[9]
-        if result[8]:
-            url = pixiv_setu_name
         if result[2]:
             url = anti_url
         if verify:
@@ -329,6 +339,36 @@ async def choose_setu(bot, ev):
         except:
             pass
 
+@sv.on_prefix(('查看原图','看看原图','看看大图','查看大图'))
+async def get_original_setu(bot, ev: CQEvent):
+    id = str(ev.message).strip()
+    user = ev['user_id']
+    if not id or id=="" or not id.isdigit():
+        await bot.send(ev, "请在后面加上要查看的涩图序号~")
+        return
+    try:
+        test_conn()
+        sql="SELECT user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify FROM bot.localsetu where id = %s"
+        cursor.execute(sql,(id))
+        results = cursor.fetchone()
+        if not results:
+            await bot.send(ev, '请检查id是否正确~')
+            return
+        if not results[5]:
+            await bot.send(ev, '暂时没有原图哦~')
+            return
+        if results[6]:
+            await bot.send(ev,"该图正在等待审核，暂不支持查看~")
+            return
+        url = os.path.join(setu_folder,results[5])
+        pixiv_id = results[4]
+        await bot.send(ev,MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\nhttps://pixiv.net/i/{str(pixiv_id)}')
+    except CQHttpError:
+        sv.logger.error(f"发送图片{id}失败")
+        try:
+            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
+        except:
+            pass
 '''旧上传方法，已弃用
 @sv.on_prefix(('上传色图','上传男图'))
 async def give_setu(bot, ev:CQEvent):
