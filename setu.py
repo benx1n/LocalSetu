@@ -345,9 +345,48 @@ class load_images:
         self.group_id=""     #开启审核的群id
         self.user_id=""      #上传的人的id
         self.switch=0   #当前是否处于审核状态 0 不处于 1处于
-        self.flag=0 #执行次数
-        self.is_man=0
+        self.flag=0     #执行次数
+        self.is_man=0   #是否男图
 li=load_images()
+
+@sv.on_message()
+async def load_setu_in_message(bot, ev:CQEvent):
+    if li.group_id!=ev['group_id'] or not li.switch :   #判断开启色图模式的和发图的是不是同一个群，以及是否开启收图模式
+        return
+    if li.user_id!=ev['user_id']:#判断是不是同一个人
+        return
+    if not (str(ev.message).find("[CQ:image")+1):  #判断收到的信息是否为图片，不是就退出
+        return
+  #  await bot.send(ev, f'ev:{ev}')
+    await load_setu(bot,ev)
+    li.flag=0
+
+@sv.on_prefix(('上传色图','上传男图'))
+async def give_setu(bot, ev:CQEvent):
+    try:
+        print(ev)
+        li.is_man = 0
+        if ev['prefix'] == '上传男图': 
+            li.is_man = 1
+        if not str(ev.message).strip() or str(ev.message).strip()=="":
+            if li.switch:                                                #当前已经开启
+                await bot.send(ev, '当前有人在上传~请稍等片刻~')
+                return
+            await bot.send(ev, '发涩图发涩图~开启收图模式~')
+            li.switch=1
+            li.flag=0
+            li.group_id=ev['group_id']
+            li.user_id=ev['user_id']
+            while li.flag<40:
+                li.flag = li.flag + 1
+                await asyncio.sleep(0.5)
+            await bot.send(ev, '溜了溜了~')
+            li.switch=0
+            return
+        await load_setu(bot,ev)
+    except Exception as e:
+        print("yichang",e)
+        await bot.send(ev, 'wuwuwu~上传失败了~')
 
 async def load_setu(bot,ev):
     try:
@@ -374,7 +413,7 @@ async def load_setu(bot,ev):
                     id=cursor.lastrowid
                     conn.commit()
                     threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
-                    await bot.send(ev, f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
+                    await bot.send(ev, f'[CQ:image,file={img_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
                     threads2.append(MyThread(verify,(id,img_url),verify.__name__))
                 else:
                     await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
@@ -399,39 +438,6 @@ async def load_setu(bot,ev):
         print("yichang",e)
         traceback.print_exc()
         await bot.send(ev, 'wuwuwu~上传出现了问题~')
-
-@sv.on_message()
-async def load_setu_in_message(bot, ev:CQEvent):
-    if li.group_id!=ev['group_id'] or not li.switch or li.user_id!=ev['user_id']:
-        return
-  #  await bot.send(ev, f'ev:{ev}')
-    await load_setu(bot,ev)
-    li.flag=0
-
-@sv.on_prefix(('上传色图','上传男图'))
-async def give_setu(bot, ev:CQEvent):
-    try:
-        print(ev)
-        li.is_man = 0
-        if ev['prefix'] == '上传男图':  #这里需要研究一下
-            li.is_man = 1
-        if not str(ev.message).strip() or str(ev.message).strip()=="":
-            if li.switch:
-                await bot.send(ev, '当前有人在上传~请稍等片刻~')
-            await bot.send(ev, '发涩图发涩图~开启收图模式~')
-            li.switch=1
-            li.group_id=ev['group_id']
-            li.user_id=ev['user_id']
-            while li.flag<40:
-                li.flag = li.flag + 1
-                await asyncio.sleep(0.5)
-            await bot.send(ev, '溜了溜了~')
-            li.switch=0
-            return
-        await load_setu(bot,ev)
-    except Exception as e:
-        print("yichang",e)
-        await bot.send(ev, 'wuwuwu~上传失败了~')
 
 @sv.on_prefix(('删除涩图', '删除色图','删除男图'))
 async def del_setu(bot, ev: CQEvent):
