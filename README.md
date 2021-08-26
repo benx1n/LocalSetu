@@ -18,10 +18,10 @@
 - [x] 数据库基于mysql，方便进行数据处理，数据结构可高度自定义
 - [x] 支持上传男同图，指令区分（不是
 
-## 部署方法（稳定了再更新）
+## 部署方法
 
 1. 在HoshinoBot的插件目录modules下clone本项目 `git clone https://github.com/benx1n/LocalSetu.git`
-2. 本地部署mysql，具体方法百度
+2. 本地部署mysql
 3. 获取[sauceNAO apikey](https://saucenao.com/)及[Pixiv refresh_token](https://gist.github.com/upbit/6edda27cb1644e94183291109b8a5fde)用于自动获取图片信息
 4. 将配置文件 `config_default.json` 重命名为 `config.json` , 修改配置文件中的设置
 5. 在 `config/__bot__.py`的模块列表里加入 `LocalSetu`
@@ -44,7 +44,7 @@
 
 ## TODO
 
-- [] 自动创建数据库
+- 改用Sqlite
 
 ## 感谢
 
