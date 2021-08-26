@@ -62,7 +62,7 @@ class MyThread(threading.Thread):
     def getResult(self):
         return self.res
 
-sv = Service('setu', manage_priv=priv.SUPERUSER, enable_on_default=True, visible=False)
+sv = Service('LocalSetu', manage_priv=priv.SUPERUSER, enable_on_default=True, visible=False)
 setu_folder = R.get('img/setu/').path
 conn = pymysql.connect(host=host,user=user,password=password,database=database,charset='utf8',autocommit = 1)
 cursor = conn.cursor()
@@ -91,6 +91,9 @@ SETU_help="""LocalSetu涩图帮助指南：
 - -修改TAG[ID][TAG]：修改指定ID的自定义TAG
 - -反和谐[ID]：色图被TX屏蔽时使用该指令，进行一次反和谐，后续发送色图均使用反和谐后文件
 - -github链接：https://github.com/benx1n/LocalSetu 有问题欢迎提issue
+=======审核人员有以下操作：
+= =审核色图[上传][删除]：进入审核模式，每次发送待审核的色图，使用指令[保留][删除]后自动发送下一张，发送[退出审核]或20秒无操作自动退出
+= =快速审核[ID]：快速通过指定ID的申请（默认保留）
 """
 @sv.on_fullmatch(('色图帮助','setuhelp','色图帮助','setu帮助','LocalSetu'))
 async def verify_setu_new(bot, ev: CQEvent):
@@ -362,7 +365,7 @@ async def get_original_setu(bot, ev: CQEvent):
             return
         url = os.path.join(setu_folder,results[5])
         pixiv_id = results[4]
-        await bot.send(ev,MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\nhttps://pixiv.net/i/{str(pixiv_id)}')
+        await bot.send(ev,MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\nhttps://pixiv.net/i/{str(pixiv_id)}\n如涩图与原图差异过小（如拆分）原图可能与上传有所差异')
     except CQHttpError:
         sv.logger.error(f"发送图片{id}失败")
         try:
@@ -495,7 +498,7 @@ async def load_setu(bot,ev):
             print(type(t.getResult()))
             id,verifynum,pixiv_id,img_url= t.getResult()
             if not verifynum:
-                await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图\nPixivID:{pixiv_id}')
+                await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
             else:
                 await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
                 await bot.send_private_msg(self_id=ev.self_id, user_id=1119809439, message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
