@@ -34,14 +34,16 @@ async def get_pixiv_id(url):
     async with NetWork(proxy='http://127.0.0.1:7890') as client:
         try:
             saucenao = AsyncSauceNAO(client=client,api_key=api_key)
-            print(url)
             res = await saucenao.search(str(url))
         except Exception as e:
             print("wrong",e)
-        #pixiv_id = res.raw[0].pixiv_id
+        pixiv_id = res.raw[0].pixiv_id
+        print(res.raw[0].raw)
+        print(res.raw[1].raw)
+        print(res.raw[2].raw)
         #print(pixiv_id)
         #await asyncio.sleep(1)
-        #pixiv_tag,pixiv_tag_t,r18=get_pixiv_tag(pixiv_id)
+        pixiv_tag,pixiv_tag_t,r18=get_pixiv_tag(pixiv_id)
         #if res.raw[0].similarity < 60 or pixiv_id == '' or not pixiv_id:
         #    print(res.raw[0].similarity)
         #    pixiv_id = 0
@@ -59,6 +61,7 @@ def get_pixiv_tag(pixiv_id):
         api.auth(refresh_token=refresh_token)
 # get origin url
         json_result = api.illust_detail(pixiv_id)
+        print(json_result)
         illust = json_result.illust.tags
         r18 = 0
         pixiv_tag = ''
@@ -76,8 +79,8 @@ def get_pixiv_tag(pixiv_id):
         return '','',0
 
 async def main():
-    sql="SELECT id,url FROM bot.localsetu where pixiv_id = 0 limit 5"
-    #sql="SELECT id,url FROM bot.localsetu where id = 759 or id =760 or id=761 ORDER BY id limit 3"
+    sql="SELECT id,url FROM bot.localsetu where pixiv_id = 0 limit 1"
+    #sql="SELECT id,url FROM bot.localsetu where id = 759 or id =760 or id=761 ORDER BY id limit 1"
     cursor.execute(sql)
     results = cursor.fetchall()
     id = 0
@@ -85,8 +88,8 @@ async def main():
     start = time.time()
     for row in results:
         id = row[0] #参数初始化
-        url= setu_folder+'/'+row[1]
-        #url= 'https://pixiv.cat/77702503-1.jpg'
+        #url= setu_folder+'/'+row[1]
+        url= 'https://pixiv.cat/92252996.jpg'
         pixiv_tag=''
         pixiv_tag_t=''
         r18=0
