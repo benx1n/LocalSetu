@@ -336,14 +336,19 @@ async def give_setu(bot, ev:CQEvent):
         print("yichang",e)
         await bot.send(ev, 'wuwuwu~上传失败了~')
 '''
-@sv.on_prefix(('上传色图','上传男图'))
-async def give_setu(bot, ev:CQEvent):
+
+class load_images:
+    def __init__(self):
+        self.group_id=""     #开启审核的群id
+        self.user_id=""      #上传的人的id
+        self.switch=0   #当前是否处于审核状态 0 不处于 1处于
+        self.flag=0 #执行次数
+li=load_images()
+
+async def load_setu(bot,ev):
     try:
-        print(ev)
+        await bot.send(ev, f'ev:{ev}')
         test_conn()
-        if not str(ev.message).strip() or str(ev.message).strip()=="":
-            await bot.send(ev, '发涩图发涩图~')
-            return
         tag = ""
         is_man = 0
         tasks1=[]
@@ -388,6 +393,34 @@ async def give_setu(bot, ev:CQEvent):
                 await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
                 await bot.send_private_msg(self_id=ev.self_id, user_id=1119809439, message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
                 await bot.send_private_msg(self_id=ev.self_id, user_id=635040951, message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
+    except Exception as e:
+        print("yichang",e)
+        await bot.send(ev, 'wuwuwu~上传出现了问题~')
+@sv.on_message()
+async def load_setu_in_message(bot, ev:CQEvent):
+    if li.group_id!=ev['group_id'] or not li.switch or li.user_id!=ev['user_id']:
+        return
+    li.switch=0
+    await bot.send(ev, f'ev:{ev}')
+    await load_setu(bot,ev)
+
+@sv.on_prefix(('上传色图','上传男图'))
+async def give_setu(bot, ev:CQEvent):
+    try:
+        print(ev)
+        if not str(ev.message).strip() or str(ev.message).strip()=="":
+            if li.switch:
+                await bot.send(ev, '当前有人在上传~请稍等片刻~')
+            await bot.send(ev, '发涩图发涩图~开启收图模式~')
+            li.switch=1
+            li.group_id=ev['group_id']
+            li.user_id=ev['user_id']
+            while li.flag<40:
+                li.flag = li.flag + 1
+                await asyncio.sleep(0.5)
+            await bot.send(ev, '溜了溜了~')
+            return
+        await load_setu(bot,ev)
     except Exception as e:
         print("yichang",e)
         await bot.send(ev, 'wuwuwu~上传失败了~')
