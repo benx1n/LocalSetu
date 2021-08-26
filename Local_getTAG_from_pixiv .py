@@ -89,7 +89,7 @@ async def main():
     for row in results:
         id = row[0] #参数初始化
         #url= setu_folder+'/'+row[1]
-        url= 'https://pixiv.cat/66134709-2.jpg'
+        url= 'https://pixiv.cat/92252996.jpg'
         pixiv_tag=''
         pixiv_tag_t=''
         r18=0

@@ -129,18 +129,28 @@ def verify(id,url):
     cursor1 = conn1.cursor()
     start = time.time()
     verify = 0
-    pixiv_id,similarity=get_pixiv_id(url)
-    if pixiv_id == 0 or pixiv_id == '' or not pixiv_id:
+    page = 0
+    pixiv_id,index_name=get_pixiv_id(url)
+    if not pixiv_id:
         sql = "update localsetu set verify = 1 where id = %s"
         cursor1.execute(sql,(id))
         verify = 1
     else:
-        pixiv_tag,pixiv_tag_t,r18=get_pixiv_tag(pixiv_id)
-        sql = "update localsetu set pixiv_id = %s,pixiv_tag = %s,pixiv_tag_t = %s,r18 = %s where id = %s"%(pixiv_id,pixiv_tag,pixiv_tag_t,r18,id)
-        cursor1.execute(sql)
+        page = re.search(r'_p(\d+)',index_name,re.X)
+        print('page'+ page.group(1))
+        pixiv_tag,pixiv_tag_t,r18,pixiv_img_url=get_pixiv_tag_url(pixiv_id,page.group(1))
+        if not pixiv_tag:
+            sql = "update localsetu set verify = 1 where id = %s"
+            cursor1.execute(sql,(id))
+            verify = 1
+        else:
+            pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.cat")
+            setu_name = os.path.split(pixiv_img_url)[1]
+            new_download(pixiv_img_url,os.path.join(setu_folder,setu_name))
+            sql = "update localsetu set pixiv_id = %s,pixiv_tag = \'%s\',pixiv_tag_t = \'%s\',r18 = %s,pixiv_url = \'%s\' where id = %s"%(pixiv_id,pixiv_tag,pixiv_tag_t,r18,setu_name,id)
+            cursor1.execute(sql)
     #lock=threading.Lock()#锁，暂时改为新建连接
     #lock.acquire()
-        
     #lock.release()
     print("usetime:%f s"%(time.time()-start))
     return id,verify,pixiv_id,url
@@ -152,28 +162,35 @@ def get_pixiv_id(url):
     saucenao = SauceNAO(api_key=api_key,**_REQUESTS_KWARGS)
     #print('seru138  url:',url)
     res = saucenao.search(url)
-    #print('res',res)
-    #print(res.raw[0])
-    pixiv_id = res.raw[0].pixiv_id
-    #print(pixiv_id)
-    similarity = res.raw[0].similarity
-    #print(similarity)
-    if similarity < 60 or pixiv_id == '' or not pixiv_id:
-        print(res.raw[0].similarity)
-        pixiv_id = 0
-    return pixiv_id,similarity
+    for i,raw in enumerate(res.raw):
+        #print('res',res)
+        #print(res.raw[0])
+        pixiv_id = raw.pixiv_id
+        #print(pixiv_id)
+        similarity = raw.similarity
+        index_name = raw.index_name
+        #print(similarity)
+        if similarity > 60 and pixiv_id:
+            print(index_name)
+            return pixiv_id,index_name
+    return 0,''
 
-#获取图片pixiv_tag
-def get_pixiv_tag(pixiv_id):
+#获取图片pixiv_tag和原图url
+def get_pixiv_tag_url(pixiv_id,page):
     try:
         api = AppPixivAPI()
         api.set_accept_language('zh-cn')
         api.auth(refresh_token=refresh_token)
         json_result = api.illust_detail(pixiv_id)
+        print(json_result)
+        if not json_result.illust.title:
+            return '','',0,''
+        page_count = json_result.illust.page_count
         illust = json_result.illust.tags
         r18 = 0
         pixiv_tag = ''
         pixiv_tag_t = ''
+        pixiv_img_url =''
         if illust[0]['name'] == 'R-18':
             r18 = 1
         for i in illust:
@@ -181,8 +198,13 @@ def get_pixiv_tag(pixiv_id):
             pixiv_tag_t = pixiv_tag_t.strip() + " "+ str(i['translated_name']).strip('None').replace("'","\\'") #拼接字符串 处理带引号sql
         pixiv_tag = pixiv_tag.strip()
         pixiv_tag_t = pixiv_tag_t.strip()
+        if page_count == 1:
+            pixiv_img_url=json_result.illust.meta_single_page['original_image_url']
+        else:
+            pixiv_img_url=json_result.illust.meta_pages[int(page)]['image_urls']['original']
+        print(pixiv_img_url)
         #print(pixiv_tag_t)
-        return pixiv_tag,pixiv_tag_t,r18
+        return pixiv_tag,pixiv_tag_t,r18,pixiv_img_url
     except Exception as e:
         print("yichang1",e)
         return '','',0
@@ -256,17 +278,17 @@ async def choose_setu(bot, ev):
             is_man = 1
         if id1==0:#带tag
             if searchtag.isdigit(): #id
-                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s AND id = %s ORDER BY RAND() limit 1"
+                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify FROM bot.localsetu where man = %s AND id = %s ORDER BY RAND() limit 1"
                 cursor.execute(sql,(is_man,searchtag))
             else:   #tag
-                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s AND (tag like %s OR pixiv_tag like %s OR pixiv_tag_t like %s) ORDER BY RAND() limit 1"
+                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify FROM bot.localsetu where man = %s AND (tag like %s OR pixiv_tag like %s OR pixiv_tag_t like %s) ORDER BY RAND() limit 1"
                 searchtag = '%'+searchtag+'%'
                 cursor.execute(sql,(is_man,searchtag,searchtag,searchtag))
         if id1==1:#全随机
-            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"
             cursor.execute(sql,(is_man))
         elif id1==2:#指定人
-            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify from localsetu where man = %s AND user = %s ORDER BY RAND() limit 1"
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify from localsetu where man = %s AND user = %s ORDER BY RAND() limit 1"
             cursor.execute(sql,(is_man,str(user)))
         conn.commit()
         result = cursor.fetchone()
@@ -281,7 +303,10 @@ async def choose_setu(bot, ev):
         tag = result[5]
         pixiv_tag = result[6]
         pixiv_id = result[7]
-        verify = result[8]
+        pixiv_setu_name = os.path.join(setu_folder,result[8])
+        verify = result[9]
+        if result[8]:
+            url = pixiv_setu_name
         if result[2]:
             url = anti_url
         if verify:
@@ -291,8 +316,9 @@ async def choose_setu(bot, ev):
             tag = f'当前TAG为空，您可以发送修改TAG{id}进行编辑~'
         else:
             tag = f'自定义TAG:{str(tag)}'
-        if pixiv_id != 0 :
+        if pixiv_id :
             pixiv_url = "https://pixiv.net/i/"+ str(pixiv_id)
+            print(url)
             await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n{pixiv_url}' +f'\n支持ID、来源、TAG模糊查询哦~'))
         else:
             await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n支持ID、来源、TAG模糊查询哦~'))
@@ -429,7 +455,7 @@ async def load_setu(bot,ev):
             print(type(t.getResult()))
             id,verifynum,pixiv_id,img_url= t.getResult()
             if not verifynum:
-                await bot.send(ev, f'id:{id}上传成功，自动审核通过\nPixivID:{pixiv_id}')
+                await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图\nPixivID:{pixiv_id}')
             else:
                 await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
                 await bot.send_private_msg(self_id=ev.self_id, user_id=1119809439, message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
