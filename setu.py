@@ -135,10 +135,10 @@ def verify(id,url):
         verify = 1
     else:
         pixiv_tag,pixiv_tag_t,r18=get_pixiv_tag(pixiv_id)
-        sql = "update localsetu set pixiv_id = \'%s\',pixiv_tag = \'%s\',pixiv_tag_t = \'%s\',r18 = \'%s\' where id = \'%s\'"%(pixiv_id,pixiv_tag,pixiv_tag_t,r18,id)
+        sql = "update localsetu set pixiv_id = \'%s\',pixiv_tag = \'%s\',pixiv_tag_t = \'%s\',r18 = \'%s\' where id = \'%s\'"
     #lock=threading.Lock()#锁，暂时改为新建连接
     #lock.acquire()
-    cursor1.execute(sql)    
+    cursor1.execute(sql,(pixiv_id,pixiv_tag,pixiv_tag_t,r18,id))    
     #lock.release()
     print("usetime:%f s"%(time.time()-start))
     return id,verify,pixiv_id,url
@@ -254,15 +254,18 @@ async def choose_setu(bot, ev):
             is_man = 1
         if id1==0:#带tag
             if searchtag.isdigit(): #id
-                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s AND id = \'%s\' ORDER BY RAND() limit 1"%(is_man,searchtag)
+                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s AND id = \'%s\' ORDER BY RAND() limit 1"
+                cursor.execute(sql,(is_man,searchtag))
             else:   #tag
-                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR pixiv_tag like \'%%%s%%\' OR pixiv_tag_t like \'%%%s%%\') ORDER BY RAND() limit 1"%(is_man,searchtag,searchtag,searchtag)
+                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s AND (tag like \'%%%s%%\' OR pixiv_tag like \'%%%s%%\' OR pixiv_tag_t like \'%%%s%%\') ORDER BY RAND() limit 1"
+                cursor.execute(sql,(is_man,searchtag,searchtag,searchtag))
         if id1==1:#全随机
-            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"%is_man
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify FROM bot.localsetu where man = %s ORDER BY RAND() limit 1"
+            cursor.execute(sql,(is_man))
         elif id1==2:#指定人
-            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify from localsetu where man = %s AND user = \'%s\' ORDER BY RAND() limit 1"%(is_man,str(user))
-        cursor.execute(sql)
-        #conn.commit()
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,verify from localsetu where man = %s AND user = \'%s\' ORDER BY RAND() limit 1"
+            cursor.execute(sql,(is_man,str(user)))
+        conn.commit()
         result = cursor.fetchone()
         if not result:
            await bot.send(ev, '该群友xp不存在~~~')
@@ -355,12 +358,12 @@ async def give_setu(bot, ev:CQEvent):
                 img_url = seg.data['url']
                 setu_name = seg.data['file']
                 user = str(ev['user_id'])
-                sql="SELECT id FROM localsetu where url = '%s'"%str(seg.data['file'])
-                cursor.execute(sql)
+                sql="SELECT id FROM localsetu where url = '%s'"
+                cursor.execute(sql,(str(seg.data['file'])))
                 result = cursor.fetchone()
                 if not result:
-                    sql="INSERT IGNORE INTO localsetu (id,url,user,date,tag,man) VALUES (NULL,\'%s\',%s,NOW(),\'%s\',%s)"%(setu_name,user,tag,is_man)
-                    cursor.execute(sql)
+                    sql="INSERT IGNORE INTO localsetu (id,url,user,date,tag,man) VALUES (NULL,\'%s\',%s,NOW(),\'%s\',%s)"
+                    cursor.execute(sql,(setu_name,user,tag,is_man))
                     id=cursor.lastrowid
                     conn.commit()
                     threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
@@ -399,8 +402,8 @@ async def del_setu(bot, ev: CQEvent):
     if not priv.check_priv(ev, priv.SUPERUSER):
         try:
             test_conn()
-            sql="select url,user from localsetu where id = %s"%(id)
-            cursor.execute(sql)
+            sql="select url,user from localsetu where id = %s"
+            cursor.execute(sql,((id)))
             results = cursor.fetchall()
             if not results:
                 await bot.send(ev, '请检查id是否正确~')
@@ -412,8 +415,8 @@ async def del_setu(bot, ev: CQEvent):
                 return
             else:
                 os.remove(os.path.join(setu_folder, row[0]))
-                sql="delete from localsetu where id = %s"%id
-                cursor.execute(sql)
+                sql="delete from localsetu where id = %s"
+                cursor.execute(sql,(id))
                 conn.commit()
                 await bot.send(ev, 'OvO~涩图删掉了~')
         except Exception as e:
@@ -422,8 +425,8 @@ async def del_setu(bot, ev: CQEvent):
     else:
         try:
             test_conn()
-            sql="select url from localsetu where id = %s"%id
-            cursor.execute(sql)
+            sql="select url from localsetu where id = %s"
+            cursor.execute(sql,(id))
             results = cursor.fetchall()
             if not results:
                await bot.send(ev, '请检查id是否正确~')
@@ -431,8 +434,8 @@ async def del_setu(bot, ev: CQEvent):
             for row in results:
                 url=row[0]
             os.remove(os.path.join(setu_folder, row[0]))
-            sql="delete from localsetu where id = %s"%id
-            cursor.execute(sql)
+            sql="delete from localsetu where id = %s"
+            cursor.execute(sql,(id))
             conn.commit()
             await bot.send(ev, 'OvO~涩图删掉了~')
         except Exception as e:
@@ -447,8 +450,8 @@ async def modify_tag(bot, ev: CQEvent):
         return
     try:
         id,tag=str(ev.message).split(' ', 1 )
-        sql="update localsetu set tag = \'%s\' where id = \'%s\'"%(tag,id)
-        cursor.execute(sql)
+        sql="update localsetu set tag = \'%s\' where id = \'%s\'"
+        cursor.execute(sql,(tag,id))
         conn.commit()
         await bot.send(ev, f'涩图{id}的TAG已更新为{tag}')
     except Exception as e:
@@ -463,8 +466,8 @@ async def Anti_harmony(bot, ev: CQEvent):
         return
     try:
         id=str(ev.message)
-        sql="SELECT url,anti_url FROM bot.localsetu where id = \'%s\' ORDER BY RAND() limit 1"%(id)
-        cursor.execute(sql)
+        sql="SELECT url,anti_url FROM bot.localsetu where id = \'%s\' ORDER BY RAND() limit 1"
+        cursor.execute(sql,(id))
         results = cursor.fetchall()
         if not results:
            await bot.send(ev, '该图片不存在~~~')
@@ -488,8 +491,8 @@ async def Anti_harmony(bot, ev: CQEvent):
         os.rename(tem_name_url,new_url)
         await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(new_url)}')) + '\n反和谐成功~')
       #  await bot.send(ev, f'涩图{id}的TAG已更新为{tag}')
-        sql="update localsetu set anti_url = \'%s\' where id = \'%s\'"%(new_MD5,id)#保存反和谐后地址
-        cursor.execute(sql)
+        sql="update localsetu set anti_url = \'%s\' where id = \'%s\'"#保存反和谐后地址
+        cursor.execute(sql,(new_MD5,id))
         conn.commit()
     except Exception as e:
         print("yichang",e)
@@ -505,8 +508,8 @@ async def apply_delete(bot, ev: CQEvent):
         return
     try:
         test_conn()
-        sql="select verify,url from localsetu where id = %s"%id
-        cursor.execute(sql)
+        sql="select verify,url from localsetu where id = %s"
+        cursor.execute(sql,(id))
         results = cursor.fetchone()
         if not results:
            await bot.send(ev, '请检查id是否正确~')
@@ -516,8 +519,8 @@ async def apply_delete(bot, ev: CQEvent):
         if verify:
             await bot.send(ev, '该图正在审核哦~')
             return
-        sql="update localsetu set verify = 2 where id = \'%s\'"%id
-        cursor.execute(sql)
+        sql="update localsetu set verify = 2 where id = \'%s\'"
+        cursor.execute(sql,(id))
         conn.commit()
         await bot.send(ev, '提交审核成功，请耐心等待哦~')
         print(type(hoshino.config.SUPERUSERS[0]))
@@ -576,14 +579,14 @@ async def verify_complete(bot, ev: CQEvent):
     try:
         test_conn()
         if ev['prefix'] == '保留':
-            sql="update localsetu set verify=0 where id = \'%s\'"%(ve.id)
-            cursor.execute(sql)
+            sql="update localsetu set verify=0 where id = \'%s\'"
+            cursor.execute(sql,(ve.id))
             conn.commit()
             await bot.send(ev, '当前图片审核通过'+str(MessageSegment.image(f'file:///{os.path.abspath(ve.url)}'))+f'id为{ve.id}')
         elif ev['prefix'] == '删除':
             os.remove(ve.url)
-            sql="delete from localsetu where id = %s"%ve.id
-            cursor.execute(sql)
+            sql="delete from localsetu where id = %s"
+            cursor.execute(sql,(ve.id))
             conn.commit()
             await bot.send(ev, 'OvO~不合格的涩图删掉了~')
         elif ev['prefix'] == '退出审核':
@@ -606,8 +609,8 @@ async def quick_verify(bot, ev:CQEvent):
         return
     try:
         test_conn()
-        sql="update localsetu set verify=0 where id = \'%s\'"%(id)
-        cursor.execute(sql)
+        sql="update localsetu set verify=0 where id = \'%s\'"
+        cursor.execute(sql,((id)))
         conn.commit()
         await bot.send(ev, f'色图{id}审核通过')
     except Exception as e:
