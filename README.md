@@ -2,7 +2,7 @@
 
 基于HoshinoBot v2的本地setu插件（说不定之后会接入在线api呢）
 
-## 改进
+## 特点
 
 - [x] 全功能支持私聊
 - [x] 支持所有用户上传图片，提交删除图片申请，共同维护色图库
@@ -15,36 +15,54 @@
 - [x] 权限分离，普通用户无权进行敏感操作，全申请均可自动推送至审核人员
 - [x] 支持反和谐
 - [x] 多线程并发，大幅优化效率
-- [x] 数据库基于mysql，方便进行数据处理，数据结构可高度自定义
+- [x] 数据存储基于sqlite，更加轻量
 - [x] 支持上传男同图，指令区分（不是
 
 ## 部署方法
 
 1. 在HoshinoBot的插件目录modules下clone本项目 `git clone https://github.com/benx1n/LocalSetu.git`
-2. 本地部署mysql
+2. 在项目文件夹下执行`pip install -r requirements.txt`安装依赖
 3. 获取[sauceNAO apikey](https://saucenao.com/)及[Pixiv refresh_token](https://gist.github.com/upbit/6edda27cb1644e94183291109b8a5fde)用于自动获取图片信息
 4. 将配置文件 `config_default.json` 重命名为 `config.json` , 修改配置文件中的设置
+5. 将数据库文件`demo.db`重命名为`LocalSetu.db`
 5. 在 `config/__bot__.py`的模块列表里加入 `LocalSetu`
 6. 重启hoshinoBot
 
+## DLC
+
+- **私聊支持：（可能会引起其他插件部分功能异常）<br>**
+    修改Hoshinobot文件夹中`.\hoshino\priv.py`内check_priv函数，返回值改为True<br>
+    ```
+    def check_priv(ev: CQEvent, require: int) -> bool:
+    if ev['message_type'] == 'group':
+        return bool(get_user_priv(ev) >= require)
+    else:
+        return True
+    ```
+    注释Hoshinobot文件夹中`.\hoshino\msghandler.py`内下方代码<br>
+    ```
+    if event.detail_type != 'group':
+        return
+    ```
 ## 指令说明
 
-- kkqyxp/kkntxp[keyword]：随机发送色图/男同图，其中keyword为可选参数，支持ID、@上传者、TAG模糊查询
-- 上传色/男图[TAG][图片][TAG][图片][TAG][图片]，其中TAG为可选参数，可跟多张图片
-- 上传色/男图[无参数]：进入上传模式，该模式下用户发送的所有图片均视为上传，无操作20秒后自动退出
-- 删除色图[ID]：删除指定ID色图，非审核人员仅可删除本人上传的色图，删除他人色图请使用'申请删除色图'
-- 申请删除色图[ID]:提交色图删除申请，自动推送至审核人员
-- 修改TAG[ID][TAG]：修改指定ID的自定义TAG
-- 反和谐[ID]：色图被TX屏蔽时使用该指令，进行一次反和谐，后续发送色图均使用反和谐后文件
+- **kkqyxp/kkntxp[keyword]**：随机发送色图/男同图，其中keyword为可选参数，支持ID、@上传者、TAG模糊查询
+- **上传色/男图[TAG][图片][TAG][图片][TAG][图片]**：批量上传色图，TAG为可选参数
+- **上传色/男图[无参数]**：进入上传模式，该模式下用户发送的所有图片均视为上传，无操作20秒后自动退出
+- **查看原图[ID]**：可用于保存原画画质的色图
+- **删除色图[ID]**：删除指定ID色图，非审核人员仅可删除本人上传的色图，删除他人色图请使用'申请删除色图'
+- **申请删除色图[ID]**:提交色图删除申请，自动推送至审核人员
+- **修改TAG[ID][TAG]**：修改指定ID的自定义TAG
+- **反和谐[ID]**：色图被TX屏蔽时使用该指令，进行一次反和谐，后续发送色图均使用反和谐后文件
 
 ## 以下指令仅限审核人员使用
 
-- 审核色图[上传][删除]：进入审核模式，每次发送待审核的色图，使用指令[保留][删除]后自动发送下一张，发送[退出审核]或20秒无操作自动退出
-- 快速审核[ID]：快速通过指定ID的申请（默认保留）
+- **审核色图[上传][删除]**：进入审核模式，每次发送待审核的色图，使用指令[保留][删除]后自动发送下一张，发送[退出审核]或20秒无操作自动退出
+- **快速审核[ID]**：快速通过指定ID的申请（默认保留）
 
 ## TODO
 
-- 改用Sqlite
+- [x] 改用Sqlite
 
 ## 感谢
 

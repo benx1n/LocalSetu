@@ -1,13 +1,12 @@
 {
-    "mysql":{
-        "host": "",
-        "database": "",
-        "user" : "",
-        "password": "",
-        "port": 
+	"proxies": {
+      "https": "http://127.0.0.1:0000"//代理地址
+      },
+	"token":{
+        "sauceNAO": "",//sauceNAO API
+        "refresh_token": ""//pixiv_auth refresh token
     },
-	"api":{
-        "sauceNAO": "",
-        "refresh_token": ""
-    }
+	"user_list":{
+		"verifies":[]//审核人员qq号，逗号分隔
+	}
 }

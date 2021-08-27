@@ -22,8 +22,11 @@ from hoshino.typing import CQEvent, MessageSegment
 with open('./hoshino/modules/LocalSetu/config.json') as json_data_file:
     config = json.load(json_data_file)
 
-api_key=config['api']['sauceNAO']
-refresh_token=config['api']['refresh_token']
+api_key=config['token']['sauceNAO']
+refresh_token=config['token']['refresh_token']
+proxy = config['proxies']['https']
+verifies=config['user_list']['verifies']
+db_path="./hoshino/modules/LocalSetu/LocalSetu.db" #数据库与插件同一个文件夹
 
 _max = 100
 EXCEED_NOTICE = f'您今天已经冲过{_max}次了，请明早5点后再来！'
@@ -32,7 +35,7 @@ _flmt = FreqLimiter(5)
 
 _REQUESTS_KWARGS = {
 'proxies': {
-      'https': 'http://127.0.0.1:7890',
+      'https': proxy,
       }
 }
 
@@ -53,28 +56,20 @@ class MyThread(threading.Thread):
 
 sv = Service('LocalSetu', manage_priv=priv.SUPERUSER, enable_on_default=True, visible=False)
 setu_folder = R.get('img/setu/').path
-conn = sqlite3.connect('./hoshino/modules/LocalSetu/LocalSetu.db')
+conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 def test_conn():
     try:
         conn.ping()
     except:
-        conn = sqlite3.connect('./hoshino/modules/LocalSetu/LocalSetu.db')
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-'''
-def setu_gener():
-    while True:
-        filelist = os.listdir(setu_folder)
-        random.shuffle(filelist)
-        for filename in filelist:
-            if os.path.isfile(os.path.join(setu_folder, filename)):
-                yield R.get('img/setu/', filename)
-'''
-#setu_gener = setu_gener()
+
 SETU_help="""LocalSetu涩图帮助指南：
 - -kkqyxp/kkntxp[keyword]：随机发送色图/男同图，其中keyword为可选参数，支持ID、@上传者、TAG模糊查询
 - -上传色/男图[TAG][图片][TAG][图片][TAG][图片]，其中TAG为可选参数，可跟多张图片
 - -上传色/男图[无参数]：进入上传模式，该模式下用户发送的所有图片均视为上传，无操作20秒后自动退出
+- -查看原图[ID]：可用于保存原画画质的色图
 - -删除色图[ID]：删除指定ID色图，非审核人员仅可删除本人上传的色图，删除他人色图请使用'申请删除色图'
 - -申请删除色图[ID]:提交色图删除申请，自动推送至审核人员
 - -修改TAG[ID][TAG]：修改指定ID的自定义TAG
@@ -88,8 +83,6 @@ SETU_help="""LocalSetu涩图帮助指南：
 async def verify_setu_new(bot, ev: CQEvent):
     await bot.send(ev,SETU_help)
 
-#def get_setu():
- #   return setu_gener.__next__()
 ''' 异步下载
 async def download(url, path):
     timeout = aiohttp.ClientTimeout(total=60)
@@ -122,7 +115,7 @@ def image2MD5(filename):
 
 #图片检测相似度，自动获取TAG
 def verify(id,url):
-    conn1= sqlite3.connect('./hoshino/modules/LocalSetu/LocalSetu.db')
+    conn1= sqlite3.connect(db_path)
     cursor1 = conn1.cursor()
     start = time.time()
     verify = 0
@@ -142,13 +135,11 @@ def verify(id,url):
         else:
             pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.cat")
             sql = "update LocalSetu set pixiv_id = ?,pixiv_tag = ?,pixiv_tag_t = ?,r18 = ?,pixiv_url = ? where id = ?"
-            print(pixiv_tag_t)
             cursor1.execute(sql,(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url,id))
     #lock=threading.Lock()#锁，暂时改为新建连接
     #lock.acquire()
     #lock.release()
     conn1.commit()
-    print("usetime:%f s"%(time.time()-start))
     return id,verify,pixiv_id,url
 
 #获取图片pixiv_id
@@ -156,18 +147,12 @@ def get_pixiv_id(url):
     pixiv_id = 0
     similarity = 0
     saucenao = SauceNAO(api_key=api_key,**_REQUESTS_KWARGS)
-    #print('seru138  url:',url)
     res = saucenao.search(url)
-    for i,raw in enumerate(res.raw):
-        #print('res',res)
-        #print(res.raw[0])
-        pixiv_id = raw.pixiv_id
-        #print(pixiv_id)
+    for raw in res.raw:
+        pixiv_id = raw.pixiv_id     
         similarity = raw.similarity
         index_name = raw.index_name
-        #print(similarity)
         if similarity > 60 and pixiv_id:
-            print(index_name)
             return pixiv_id,index_name
     return 0,''
 
@@ -178,7 +163,6 @@ def get_pixiv_tag_url(pixiv_id,page):
         api.set_accept_language('zh-cn')
         api.auth(refresh_token=refresh_token)
         json_result = api.illust_detail(pixiv_id)
-        print(json_result)
         if not json_result.illust.title:
             return '','',0,''
         page_count = json_result.illust.page_count
@@ -198,16 +182,12 @@ def get_pixiv_tag_url(pixiv_id,page):
             pixiv_img_url=json_result.illust.meta_single_page['original_image_url']
         else:
             pixiv_img_url=json_result.illust.meta_pages[int(page)]['image_urls']['original']
-        print(pixiv_img_url)
-        #print(pixiv_tag_t)
         return pixiv_tag,pixiv_tag_t,r18,pixiv_img_url
     except Exception as e:
-        print("yichang1",e)
         return '','',0
 
 @sv.on_prefix(('kkqyxp','看看群友xp','看看群友性癖','kkntxp','看看男同xp','看看男同性癖'))
 async def choose_setu(bot, ev):
-    print(ev)
     uid = ev['user_id']
     if not _nlmt.check(uid):
         await bot.send(ev, EXCEED_NOTICE, at_sender=True)
@@ -216,8 +196,7 @@ async def choose_setu(bot, ev):
         await bot.send(ev, '您冲得太快了，请稍候再冲', at_sender=True)
         return
     _flmt.start_cd(uid)
-    _nlmt.increase(uid)
-   # text = 
+    _nlmt.increase(uid) 
     id1=0
     searchtag = str(ev.message).strip()
     if not searchtag or searchtag=="":
@@ -225,9 +204,6 @@ async def choose_setu(bot, ev):
     elif ev.message[0].type == 'at':
         id1 = 2
         user = int(ev.message[0].data['qq'])
-    #else:
-     #   await bot.finish(ev, '参数格式错误, 请重试')
-    # conditions all ok, send a setu.
     try:
         test_conn()
         is_man = 0
@@ -272,7 +248,6 @@ async def choose_setu(bot, ev):
             tag = f'自定义TAG:{str(tag)}'
         if pixiv_id :
             pixiv_url = "https://pixiv.net/i/"+ str(pixiv_id)
-            print(url)
             await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n{pixiv_url}' +f'\n支持ID、来源、TAG模糊查询哦~'))
         else:
             await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n支持ID、来源、TAG模糊查询哦~'))
@@ -286,7 +261,6 @@ async def choose_setu(bot, ev):
 @sv.on_prefix(('查看原图','看看原图','看看大图','查看大图'))
 async def get_original_setu(bot, ev: CQEvent):
     id = str(ev.message).strip()
-    user = ev['user_id']
     if not id or id=="" or not id.isdigit():
         await bot.send(ev, "请在后面加上要查看的涩图序号~")
         return
@@ -349,14 +323,12 @@ async def load_setu_in_message(bot, ev:CQEvent):
         return
     if not (str(ev.message).find("[CQ:image")+1):  #判断收到的信息是否为图片，不是就退出
         return
-  #  await bot.send(ev, f'ev:{ev}')
     await load_setu(bot,ev)
     li.flag=0
 
 @sv.on_prefix(('上传色图','上传男图'))
 async def give_setu(bot, ev:CQEvent):
     try:
-        print(ev)
         li.is_man = 0
         if ev['prefix'] == '上传男图': 
             li.is_man = 1
@@ -377,19 +349,16 @@ async def give_setu(bot, ev:CQEvent):
             return
         await load_setu(bot,ev)
     except Exception as e:
-        print("yichang",e)
         await bot.send(ev, 'wuwuwu~上传失败了~')
 
 async def load_setu(bot,ev):
     try:
-  #      await bot.send(ev, f'ev:{ev}')
         test_conn()
         tag = ""
         is_man = li.is_man
-        tasks1=[]
         threads1 = []
         threads2 = []
-        for i,seg in enumerate(ev.message):
+        for seg in ev.message:
             if seg.type == 'text':
                 tag=str(seg).strip()
             elif seg.type == 'image':
@@ -417,17 +386,14 @@ async def load_setu(bot,ev):
             t.start()
         for t in threads2:
             t.join()
-            print(t.getResult())
-            print(type(t.getResult()))
             id,verifynum,pixiv_id,img_url= t.getResult()
             if not verifynum:
                 await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
             else:
                 await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
-                await bot.send_private_msg(self_id=ev.self_id, user_id=1119809439, message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
-                await bot.send_private_msg(self_id=ev.self_id, user_id=635040951, message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
+                for ves in verifies:
+                    await bot.send_private_msg(self_id=ev.self_id, user_id=int(ves), message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
     except Exception as e:
-        print("yichang",e)
         await bot.send(ev, 'wuwuwu~上传出现了问题~')
 
 @sv.on_prefix(('删除涩图', '删除色图','删除男图'))
@@ -437,7 +403,7 @@ async def del_setu(bot, ev: CQEvent):
     if not id or id=="" or not id.isdigit():
         await bot.send(ev, "请在后面加上要删除的涩图序号~如果要删除非本人上传的涩图，请使用'申请删除色图'指令")
         return
-    if not priv.check_priv(ev, priv.SUPERUSER):
+    if int(user) not in verifies:
         try:
             test_conn()
             sql="select url,user from LocalSetu where id = ?"
@@ -448,17 +414,16 @@ async def del_setu(bot, ev: CQEvent):
                 return 
             for row in results:
                 url=row[0]
-            if user != row[1]:
-                await bot.send(ev, "这张涩图不是您上传的哦~如果觉得不够涩请使用'申请删除色图'指令")
-                return
-            else:
-                os.remove(os.path.join(setu_folder, row[0]))
-                sql="delete from LocalSetu where id = ?"
-                cursor.execute(sql,(id,))
-                conn.commit()
-                await bot.send(ev, 'OvO~涩图删掉了~')
+                if user != row[1]:
+                    await bot.send(ev, "这张涩图不是您上传的哦~如果觉得不够涩请使用'申请删除色图'指令")
+                    return
+                else:
+                    os.remove(os.path.join(setu_folder, url))
+                    sql="delete from LocalSetu where id = ?"
+                    cursor.execute(sql,(id,))
+                    conn.commit()
+                    await bot.send(ev, 'OvO~涩图删掉了~')
         except Exception as e:
-            print("yichang",e)
             await bot.send(ev, 'QAQ~删涩图的时候出现了问题，但一定不是我的问题~')
     else:
         try:
@@ -467,17 +432,16 @@ async def del_setu(bot, ev: CQEvent):
             cursor.execute(sql,(id,))
             results = cursor.fetchall()
             if not results:
-               await bot.send(ev, '请检查id是否正确~')
-               return
+                await bot.send(ev, '请检查id是否正确~')
+                return
             for row in results:
                 url=row[0]
-            os.remove(os.path.join(setu_folder, row[0]))
+            os.remove(os.path.join(setu_folder, url))
             sql="delete from LocalSetu where id = ?"
             cursor.execute(sql,(id,))
             conn.commit()
             await bot.send(ev, 'OvO~涩图删掉了~')
         except Exception as e:
-            print("yichang",e)
             await bot.send(ev, 'QAQ~删涩图的时候出现了问题，但一定不是我的问题~')
 
 @sv.on_prefix(('修改TAG','修改tag'))
@@ -493,7 +457,6 @@ async def modify_tag(bot, ev: CQEvent):
         conn.commit()
         await bot.send(ev, f'涩图{id}的TAG已更新为{tag}')
     except Exception as e:
-        print("yichang",e)
         await bot.send(ev, '请在指令后添加ID和TAG哦~以空格区分')
 
 @sv.on_prefix(('反和谐'))
@@ -510,7 +473,6 @@ async def Anti_harmony(bot, ev: CQEvent):
         if not results:
            await bot.send(ev, '该图片不存在~~~')
            return
-    #    print(results)
         for row in results:
             name=row[0]
             url=os.path.join(setu_folder,row[0])
@@ -523,23 +485,18 @@ async def Anti_harmony(bot, ev: CQEvent):
         img=image_random_one_pixel(img)
         img.save(tem_name_url,'jpeg',quality=75)
         new_MD5=image2MD5(tem_name_url)   #格式是xx.image
- #       await bot.send(ev, f'111111{tem_name_url}~')
         new_url=os.path.join(setu_folder,new_MD5)
-   #     await bot.send(ev, f'222222{new_url}~')
         os.rename(tem_name_url,new_url)
         await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(new_url)}')) + '\n反和谐成功~')
-      #  await bot.send(ev, f'涩图{id}的TAG已更新为{tag}')
         sql="update LocalSetu set anti_url = ? where id = ?"#保存反和谐后地址
         cursor.execute(sql,(new_MD5,id))
         conn.commit()
     except Exception as e:
-        print("yichang",e)
         await bot.send(ev, '反和谐失败了呜呜呜~')
 
 @sv.on_prefix(('申请删除色图'))
 async def apply_delete(bot, ev: CQEvent):
     id = str(ev.message).strip()
-    user = ev['user_id']
     if not id or id=="":
         await bot.send(ev, "请在后面加上要申请删除的涩图序号~")
         return
@@ -560,11 +517,9 @@ async def apply_delete(bot, ev: CQEvent):
         cursor.execute(sql,(id,))
         conn.commit()
         await bot.send(ev, '提交审核成功，请耐心等待哦~')
-        print(type(hoshino.config.SUPERUSERS[0]))
-        await bot.send_private_msg(self_id=ev.self_id, user_id=1119809439,message=f'有新的删除申请,id:{id}'+str(MessageSegment.image(f'file:///{os.path.abspath(url)}')))
-        await bot.send_private_msg(self_id=ev.self_id, user_id=635040951,message=f'有新的删除申请,id:{id}'+str(MessageSegment.image(f'file:///{os.path.abspath(url)}')))
+        for ves in verifies:
+            await bot.send_private_msg(self_id=ev.self_id, user_id=int(ves),message=f'有新的删除申请,id:{id}'+str(MessageSegment.image(f'file:///{os.path.abspath(url)}')))
     except Exception as e:
-        print("yichang",e)
         await bot.send(ev, 'QAQ~出了点小问题,说不定过一会儿就能恢复')
 
 class Verify:
@@ -578,7 +533,7 @@ ve=Verify()
 
 @sv.on_fullmatch(('审核色图上传','审核色图删除'))
 async def verify_setu(bot, ev: CQEvent):
-    if not priv.check_priv(ev, priv.SUPERUSER):
+    if int(ev["user_id"]) not in verifies:
         await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
         return
     if ev['prefix'] == '审核色图上传':
@@ -606,12 +561,11 @@ async def verify_setu(bot, ev: CQEvent):
         await bot.send(ev, '20秒过去了，审核结束~')
         return
     except Exception as e:
-        print("yichang",e)
-    await bot.send(ev, 'QAQ~审核的时候出现了问题，但一定不是我的问题~')
+        await bot.send(ev, 'QAQ~审核的时候出现了问题，但一定不是我的问题~')
 
 @sv.on_fullmatch(('保留','删除','退出审核'))
 async def verify_complete(bot, ev: CQEvent):
-    if not ve.switch:
+    if not ve.switch and int(ev["user_id"]) not in verifies:
         return
     try:
         test_conn()
@@ -636,11 +590,11 @@ async def verify_complete(bot, ev: CQEvent):
 
 @sv.on_prefix('快速审核')
 async def quick_verify(bot, ev:CQEvent):
-    if not priv.check_priv(ev, priv.SUPERUSER):
-        await bot.send(ev,'你谁啊你，不是管理员没资格审核色图哦~')
-        return
     id = str(ev.message).strip()
     user = ev['user_id']
+    if int(user) not in verifies:
+        await bot.send(ev,'你谁啊你，不是管理员没资格审核色图哦~')
+        return
     if not id:
         await bot.send(ev, "请在后面加上要通过的涩图序号f~")
         return
@@ -652,4 +606,3 @@ async def quick_verify(bot, ev:CQEvent):
         await bot.send(ev, f'色图{id}审核通过')
     except Exception as e:
         await bot.send(ev, "出了点小问题，但一定不是我的问题~")
-        print("yichang",e)
