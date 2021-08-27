@@ -27,7 +27,7 @@ refresh_token=config['token']['refresh_token']
 proxy = config['proxies']['https']
 verifies=config['user_list']['verifies']
 db_path="./hoshino/modules/LocalSetu/LocalSetu.db" #数据库与插件同一个文件夹
-
+proxy_on = config['proxies']['on']
 _max = 100
 EXCEED_NOTICE = f'您今天已经冲过{_max}次了，请明早5点后再来！'
 _nlmt = DailyNumberLimiter(_max)
@@ -159,32 +159,35 @@ def get_pixiv_id(url):
 #获取图片pixiv_tag和原图url
 def get_pixiv_tag_url(pixiv_id,page):
     try:
-        api = AppPixivAPI()
-        api.set_accept_language('zh-cn')
-        api.auth(refresh_token=refresh_token)
-        json_result = api.illust_detail(pixiv_id)
-        if not json_result.illust.title:
-            return '','',0,''
-        page_count = json_result.illust.page_count
-        illust = json_result.illust.tags
-        r18 = 0
-        pixiv_tag = ''
-        pixiv_tag_t = ''
-        pixiv_img_url =''
-        if illust[0]['name'] == 'R-18':
-            r18 = 1
-        for i in illust:
-            pixiv_tag = pixiv_tag.strip()+ " "+ str(i['name']).strip('R-18')
-            pixiv_tag_t = pixiv_tag_t.strip() + " "+ str(i['translated_name']).strip('None') #拼接字符串 处理带引号sql
-        pixiv_tag = pixiv_tag.strip()
-        pixiv_tag_t = pixiv_tag_t.strip()
-        if page_count == 1:
-            pixiv_img_url=json_result.illust.meta_single_page['original_image_url']
+        if proxy_on:
+            api = AppPixivAPI()
+            api.set_accept_language('zh-cn')
+            api.auth(refresh_token=refresh_token)
+            json_result = api.illust_detail(pixiv_id)
+            if not json_result.illust.title:
+                return '','',0,''
+            page_count = json_result.illust.page_count
+            illust = json_result.illust.tags
+            r18 = 0
+            pixiv_tag = ''
+            pixiv_tag_t = ''
+            pixiv_img_url =''
+            if illust[0]['name'] == 'R-18':
+                r18 = 1
+            for i in illust:
+                pixiv_tag = pixiv_tag.strip()+ " "+ str(i['name']).strip('R-18')
+                pixiv_tag_t = pixiv_tag_t.strip() + " "+ str(i['translated_name']).strip('None') #拼接字符串 处理带引号sql
+            pixiv_tag = pixiv_tag.strip()
+            pixiv_tag_t = pixiv_tag_t.strip()
+            if page_count == 1:
+                pixiv_img_url=json_result.illust.meta_single_page['original_image_url']
+            else:
+                pixiv_img_url=json_result.illust.meta_pages[int(page)]['image_urls']['original']
+            return pixiv_tag,pixiv_tag_t,r18,pixiv_img_url
         else:
-            pixiv_img_url=json_result.illust.meta_pages[int(page)]['image_urls']['original']
-        return pixiv_tag,pixiv_tag_t,r18,pixiv_img_url
+            return '','',0,''
     except Exception as e:
-        return '','',0
+        return '','',0,''
 
 @sv.on_prefix(('kkqyxp','看看群友xp','看看群友性癖','kkntxp','看看男同xp','看看男同性癖'))
 async def choose_setu(bot, ev):
@@ -380,19 +383,22 @@ async def load_setu(bot,ev):
                     await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
         for t in threads1:
             t.setDaemon(True)
-            t.start()      
-        for t in threads2:
-            t.setDaemon(True)
             t.start()
-        for t in threads2:
-            t.join()
-            id,verifynum,pixiv_id,img_url= t.getResult()
-            if not verifynum:
-                await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
-            else:
-                await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
-                for ves in verifies:
-                    await bot.send_private_msg(self_id=ev.self_id, user_id=int(ves), message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
+        if proxy_on:
+            for t in threads2:
+                t.setDaemon(True)
+                t.start()
+            for t in threads2:
+                t.join()
+                id,verifynum,pixiv_id,img_url= t.getResult()
+                if not verifynum:
+                    await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
+                else:
+                    await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
+                    for ves in verifies:
+                        await bot.send_private_msg(self_id=ev.self_id, user_id=int(ves), message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
+        else:
+            await bot.send(ev, f'由于您未开启代理，无法自动获取色图信息')
     except Exception as e:
         await bot.send(ev, 'wuwuwu~上传出现了问题~')
 
