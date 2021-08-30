@@ -1,5 +1,5 @@
 import os
-import json
+import hjson
 import random
 import re
 from nonebot.typing import State_T
@@ -19,8 +19,8 @@ from hoshino.util import FreqLimiter, DailyNumberLimiter
 from hoshino.typing import CQEvent, MessageSegment
 
 
-with open('./hoshino/modules/LocalSetu/config.json') as json_data_file:
-    config = json.load(json_data_file)
+with open('./hoshino/modules/LocalSetu/config.hjson','r', encoding='UTF-8') as json_data_file:
+    config = hjson.load(json_data_file)
 
 api_key=config['token']['sauceNAO']
 refresh_token=config['token']['refresh_token']
