@@ -18,7 +18,7 @@
 - [x] 数据存储基于sqlite，更加轻量
 - [x] 支持上传男同图，指令区分（不是
 
-## 部署方法
+## 首次部署
 
 1. 在HoshinoBot的插件目录modules下clone本项目 `git clone https://github.com/benx1n/LocalSetu.git`
 2. 在项目文件夹下执行`pip install -r requirements.txt`安装依赖
@@ -53,6 +53,15 @@
 5. 将数据库文件`demo.db`重命名为`LocalSetu.db`
 5. 在 `config/__bot__.py`的模块列表里加入 `LocalSetu`
 6. 重启hoshinoBot
+
+## 更新
+
+1. 在项目文件夹下执行
+    >```
+    >git pull
+    >```
+2. 对比config_default中是否有新增配置项，同步至本地config
+3. 重启hoshinobot
 
 ## DLC
 
