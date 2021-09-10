@@ -144,17 +144,21 @@ def verify(id,url):
 
 #获取图片pixiv_id
 def get_pixiv_id(url):
-    pixiv_id = 0
-    similarity = 0
-    saucenao = SauceNAO(api_key=api_key,**_REQUESTS_KWARGS)
-    res = saucenao.search(url)
-    for raw in res.raw:
-        pixiv_id = raw.pixiv_id     
-        similarity = raw.similarity
-        index_name = raw.index_name
-        if similarity > 60 and pixiv_id:
-            return pixiv_id,index_name
-    return 0,''
+    try:
+        pixiv_id = 0
+        similarity = 0
+        saucenao = SauceNAO(api_key=api_key,**_REQUESTS_KWARGS)
+        res = saucenao.search(url)
+        if not res.raw:
+            return 0,''
+        for raw in res.raw:
+            pixiv_id = raw.pixiv_id     
+            similarity = raw.similarity
+            index_name = raw.index_name
+            if similarity > 60 and pixiv_id:
+                return pixiv_id,index_name
+    except Exception as e:
+        return 0,''
 
 #获取图片pixiv_tag和原图url
 def get_pixiv_tag_url(pixiv_id,page):
@@ -271,6 +275,7 @@ async def get_original_setu(bot, ev: CQEvent):
         test_conn()
         sql="SELECT pixiv_url,verify,pixiv_name,pixiv_id,url FROM LocalSetu where id = ?"
         cursor.execute(sql,(id,))
+        conn.commit()
         results = cursor.fetchone()
         if not results:
             await bot.send(ev, '请检查id是否正确~')
@@ -352,6 +357,7 @@ async def give_setu(bot, ev:CQEvent):
             return
         await load_setu(bot,ev)
     except Exception as e:
+        li.switch = 0
         await bot.send(ev, 'wuwuwu~上传失败了~')
 
 async def load_setu(bot,ev):
@@ -370,6 +376,7 @@ async def load_setu(bot,ev):
                 user = str(ev['user_id'])
                 sql="SELECT id FROM LocalSetu where url = ?"
                 cursor.execute(sql,(setu_name,))
+                conn.commit()
                 result = cursor.fetchone()
                 if not result:
                     sql="INSERT OR IGNORE INTO LocalSetu (id,url,user,date,tag,man) VALUES (NULL,?,?,datetime('now'),?,?)"
@@ -414,6 +421,7 @@ async def del_setu(bot, ev: CQEvent):
             test_conn()
             sql="select url,user from LocalSetu where id = ?"
             cursor.execute(sql,(id,))
+            conn.commit()
             results = cursor.fetchall()
             if not results:
                 await bot.send(ev, '请检查id是否正确~')
@@ -436,6 +444,7 @@ async def del_setu(bot, ev: CQEvent):
             test_conn()
             sql="select url from LocalSetu where id = ?"
             cursor.execute(sql,(id,))
+            conn.commit()
             results = cursor.fetchall()
             if not results:
                 await bot.send(ev, '请检查id是否正确~')
@@ -475,6 +484,7 @@ async def Anti_harmony(bot, ev: CQEvent):
         id=str(ev.message)
         sql="SELECT url,anti_url FROM LocalSetu where id =? ORDER BY random() limit 1"
         cursor.execute(sql,(id,))
+        conn.commit()
         results = cursor.fetchall()
         if not results:
            await bot.send(ev, '该图片不存在~~~')
@@ -510,6 +520,7 @@ async def apply_delete(bot, ev: CQEvent):
         test_conn()
         sql="select verify,url from LocalSetu where id = ?"
         cursor.execute(sql,(id,))
+        conn.commit()
         results = cursor.fetchone()
         if not results:
            await bot.send(ev, '请检查id是否正确~')
@@ -553,6 +564,7 @@ async def verify_setu(bot, ev: CQEvent):
             if not ve.sql_state:
                 test_conn()
                 cursor.execute(sql)
+                conn.commit()
                 results = cursor.fetchone()
                 if not results:
                     await bot.send(ev, '当前没有要审核图片哦，摸鱼大胜利~')
