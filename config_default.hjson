@@ -5,7 +5,8 @@
       },
 	"token":{
         "sauceNAO": "",//sauceNAO API
-        "refresh_token": ""//pixiv_auth refresh token
+        "refresh_token": "",//pixiv_auth refresh token
+        "sauceNao_limit":6//sauceNAO30秒请求上限，默认为6
     },
 	"user_list":{
 		"verifies":[]//审核人员qq号，逗号分隔

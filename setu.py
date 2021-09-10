@@ -10,6 +10,7 @@ import sqlite3
 import hashlib
 import threading
 import asyncio
+import aiohttp
 from pixivpy3 import *
 from PicImageSearch import SauceNAO
 from nonebot.exceptions import CQHttpError
@@ -28,6 +29,7 @@ proxy = config['proxies']['https']
 verifies=config['user_list']['verifies']
 db_path="./hoshino/modules/LocalSetu/LocalSetu.db" #数据库与插件同一个文件夹
 proxy_on = config['proxies']['on']
+sauceNao_limit = config['token']['sauceNAO_limit']
 _max = 100
 EXCEED_NOTICE = f'您今天已经冲过{_max}次了，请明早5点后再来！'
 _nlmt = DailyNumberLimiter(_max)
@@ -83,7 +85,7 @@ SETU_help="""LocalSetu涩图帮助指南：
 async def verify_setu_new(bot, ev: CQEvent):
     await bot.send(ev,SETU_help)
 
-''' 异步下载
+
 async def download(url, path):
     timeout = aiohttp.ClientTimeout(total=60)
     async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -91,7 +93,7 @@ async def download(url, path):
             content = await resp.read()
             with open(path, 'wb') as f:
                 f.write(content)
-'''
+
 def new_download(url, path):
     img_file = requests.get(url)
     with open(path, 'wb') as f:
@@ -149,15 +151,19 @@ def get_pixiv_id(url):
         similarity = 0
         saucenao = SauceNAO(api_key=api_key,**_REQUESTS_KWARGS)
         res = saucenao.search(url)
-        if not res.raw:
+        if not res:
             return 0,''
-        for raw in res.raw:
-            pixiv_id = raw.pixiv_id     
-            similarity = raw.similarity
-            index_name = raw.index_name
-            if similarity > 60 and pixiv_id:
-                return pixiv_id,index_name
+        else:
+            for raw in res.raw:
+                pixiv_id = raw.pixiv_id     
+                similarity = raw.similarity
+                index_name = raw.index_name
+                if similarity > 60 and pixiv_id:
+                    return pixiv_id,index_name
+                else:
+                    return 0,''
     except Exception as e:
+        print(e)
         return 0,''
 
 #获取图片pixiv_tag和原图url
@@ -365,8 +371,9 @@ async def load_setu(bot,ev):
         test_conn()
         tag = ""
         is_man = li.is_man
-        threads1 = []
+        #threads1 = []
         threads2 = []
+        tasks1 = []
         for seg in ev.message:
             if seg.type == 'text':
                 tag=str(seg).strip()
@@ -383,15 +390,19 @@ async def load_setu(bot,ev):
                     cursor.execute(sql,(setu_name,user,tag,is_man))
                     id=cursor.lastrowid
                     conn.commit()
-                    threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
+                    #threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
+                    tasks1.append(download(img_url, os.path.join(setu_folder,setu_name)))
                     await bot.send(ev, f'[CQ:image,file={img_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
                     threads2.append(MyThread(verify,(id,img_url),verify.__name__))
                 else:
                     await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
-        for t in threads1:
-            t.setDaemon(True)
-            t.start()
+        #for t in threads1:
+        #    t.setDaemon(True)
+        #    t.start()
+        await asyncio.gather(*tasks1)
         if proxy_on:
+            if len(threads2)>sauceNao_limit:
+                await bot.send(ev,'您本次上传的数量超过了sauceNAO30秒允许的最大值，部分图可能无法成功获取tag,请稍后尝试使用查看原图重新获取')
             for t in threads2:
                 t.setDaemon(True)
                 t.start()
