@@ -338,17 +338,13 @@ li=load_images()
 @sv.on_message()
 async def load_setu_in_message(bot, ev:CQEvent):
     if not li.switch:       #是否开启收图模式
-        print('1')
         return
     if li.is_private == 0 :   #是否群聊
         if li.group_id!=ev['group_id']:     #开启色图模式的和发图的是不是同一个群
-            print('2')
             return
     if li.user_id!=ev['user_id'] :      #判断是不是同一个人
-        print('3')
         return
     if not (str(ev.message).find("[CQ:image")+1):  #判断收到的信息是否为图片，不是就退出
-        print('4')
         return
     await load_setu(bot,ev)
     li.flag=0
