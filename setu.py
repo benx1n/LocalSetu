@@ -18,6 +18,7 @@ import hoshino
 from hoshino import R, Service, priv
 from hoshino.util import FreqLimiter, DailyNumberLimiter
 from hoshino.typing import CQEvent, MessageSegment
+from nonebot import on_command
 
 
 with open('./hoshino/modules/LocalSetu/config.hjson','r', encoding='UTF-8') as json_data_file:
@@ -46,6 +47,10 @@ class MyThread(threading.Thread):
         threading.Thread.__init__(self)
         self.func = func
         self.name = name
+
+
+
+
         self.args = args
 
     def run(self):
@@ -327,15 +332,23 @@ class load_images:
         self.switch=0   #当前是否处于审核状态 0 不处于 1处于
         self.flag=0     #执行次数
         self.is_man=0   #是否男图
+        self.is_private =0 #是否私聊
 li=load_images()
 
 @sv.on_message()
 async def load_setu_in_message(bot, ev:CQEvent):
-    if li.group_id!=ev['group_id'] or not li.switch :   #判断开启色图模式的和发图的是不是同一个群，以及是否开启收图模式
+    if not li.switch:       #是否开启收图模式
+        print('1')
         return
-    if li.user_id!=ev['user_id']:#判断是不是同一个人
+    if li.is_private == 0 :   #是否群聊
+        if li.group_id!=ev['group_id']:     #开启色图模式的和发图的是不是同一个群
+            print('2')
+            return
+    if li.user_id!=ev['user_id'] :      #判断是不是同一个人
+        print('3')
         return
     if not (str(ev.message).find("[CQ:image")+1):  #判断收到的信息是否为图片，不是就退出
+        print('4')
         return
     await load_setu(bot,ev)
     li.flag=0
@@ -353,7 +366,10 @@ async def give_setu(bot, ev:CQEvent):
             await bot.send(ev, '发涩图发涩图~开启收图模式~')
             li.switch=1
             li.flag=0
-            li.group_id=ev['group_id']
+            if ev['message_type']== 'private':
+                li.is_private = 1
+            else:
+                li.group_id=ev['group_id']
             li.user_id=ev['user_id']
             while li.flag<40:
                 li.flag = li.flag + 1
@@ -635,3 +651,78 @@ async def quick_verify(bot, ev:CQEvent):
         await bot.send(ev, f'色图{id}审核通过')
     except Exception as e:
         await bot.send(ev, "出了点小问题，但一定不是我的问题~")
+
+@sv.on_fullmatch(('上传统计'))
+async def verify_complete(bot, ev: CQEvent):
+    sql1 = "select count(*) as sumnumber from LocalSetu"
+    sql2 = "select user,count(user) as number from LocalSetu GROUP BY user ORDER BY number desc limit 10"
+    test_conn()
+    cursor.execute(sql1)
+    conn.commit()
+    results = cursor.fetchone()
+    sumnumber = results[0]
+    text = f"当前图库总数{sumnumber}："
+    cursor.execute(sql2)
+    conn.commit()
+    results = cursor.fetchall()
+    
+    for i,raw in enumerate(results):
+        user = raw[0]
+        number = raw[1]
+        text = text +f"\n第{str(i+1)}名："+ f'[CQ:at,qq={str(user)}] '+f'上传{str(number)}张'
+    await bot.send(ev,text)
+
+@sv.on_prefix(('sql'))
+async def choose_setu(bot, ev):
+    uid = ev['user_id']
+    if not _nlmt.check(uid):
+        await bot.send(ev, EXCEED_NOTICE, at_sender=True)
+        return
+    if not _flmt.check(uid):
+        await bot.send(ev, '您冲得太快了，请稍候再冲', at_sender=True)
+        return
+    _flmt.start_cd(uid)
+    _nlmt.increase(uid) 
+    sql_result = str(ev.message).strip().split(' ',1)
+    if int(sql_result[0])>10:
+        sql_result[0] = '10'
+    sql = "SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify FROM LocalSetu where " + sql_result[1] +" ORDER BY random() limit "+ sql_result[0]
+    print(sql)
+    try:
+        test_conn()
+        cursor.execute(sql)
+        conn.commit()
+        result = cursor.fetchall()
+        if not result:
+           await bot.send(ev, '该群友xp不存在~~~')
+           return
+        for raw in result:
+            id = raw[0]
+            url=os.path.join(setu_folder,raw[1])
+            anti_url = os.path.join(setu_folder,raw[2])
+            user = raw[3]
+            date = raw[4]
+            tag = raw[5]
+            pixiv_tag = raw[6]
+            pixiv_id = raw[7]
+            verify = raw[9]
+            if raw[2]:
+                url = anti_url
+            if verify:
+                await bot.send(ev,"该图正在等待审核，暂不支持查看~")
+                return
+            if tag:
+                tag = f'当前TAG为空，您可以发送修改TAG{id}进行编辑~'
+            else:
+                tag = f'自定义TAG:{str(tag)}'
+            if pixiv_id :
+                pixiv_url = "https://pixiv.net/i/"+ str(pixiv_id)
+                await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n{pixiv_url}' +f'\n支持ID、来源、TAG模糊查询哦~'))
+            else:
+                await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n支持ID、来源、TAG模糊查询哦~'))
+    except CQHttpError:
+        sv.logger.error(f"发送图片{id}失败")
+        try:
+            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
+        except:
+            pass
