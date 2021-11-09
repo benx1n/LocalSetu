@@ -81,10 +81,17 @@ SETU_help="""LocalSetu涩图帮助指南：
 - -申请删除色图[ID]:提交色图删除申请，自动推送至审核人员
 - -修改TAG[ID][TAG]：修改指定ID的自定义TAG
 - -反和谐[ID]：色图被TX屏蔽时使用该指令，进行一次反和谐，后续发送色图均使用反和谐后文件
+- -上传统计：让我康康谁才是LSP！
+- -[BETA]sql：批量涩图，sql+数量+空格+条件，如sql10 id>1000，条件可参考sql表结构
 - -github链接：https://github.com/benx1n/LocalSetu 有问题欢迎提issue
+=======Shokaku限定功能：
+- -gkd：在线图库，使用方法[r18]TAG+涩图，可使用 & 和 | 将多个TAG进行组合，如r18明日方舟|碧蓝航线&白丝|黑丝gkd，则会查找（明日方舟或碧蓝航线）且是（黑丝或白丝）的r18涩图
+- -sql：批量本地涩图，sql+数量+空格+条件，如sql10 id>1000，条件可参考sql表结构
+- -搜图：@bot+图或发送搜图进入搜图模式
 =======审核人员有以下操作：
 = =审核色图[上传][删除]：进入审核模式，每次发送待审核的色图，使用指令[保留][删除]后自动发送下一张，发送[退出审核]或20秒无操作自动退出
 = =快速审核[ID]：快速通过指定ID的申请（默认保留）
+= =重新自动审核/重新获取TAG[起始ID]：重新审核/获取TAG，适用于首次上传由于SauceNAO接口限制而导致的批量自动审核失败
 """
 @sv.on_fullmatch(('色图帮助','setuhelp','色图帮助','setu帮助','LocalSetu'))
 async def verify_setu_new(bot, ev: CQEvent):
@@ -474,10 +481,10 @@ async def del_setu(bot, ev: CQEvent):
                 return
             for row in results:
                 url=row[0]
-            os.remove(os.path.join(setu_folder, url))
             sql="delete from LocalSetu where id = ?"
             cursor.execute(sql,(id,))
             conn.commit()
+            os.remove(os.path.join(setu_folder, url))
             await bot.send(ev, 'OvO~涩图删掉了~')
         except Exception as e:
             await bot.send(ev, 'QAQ~删涩图的时候出现了问题，但一定不是我的问题~')
@@ -722,3 +729,59 @@ async def choose_setu(bot, ev):
             await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
         except:
             pass
+        
+@sv.on_prefix(('重新自动审核', '重新获取TAG'))
+async def auto_verify(bot, ev: CQEvent):
+    id = str(ev.message).strip()
+    user = ev['user_id']
+    if not id or id=="" or not id.isdigit():
+        await bot.send(ev, "请在后面加上起始ID")
+        return
+    if int(user) not in verifies:
+        await bot.send(ev,'你谁啊你，不是管理员没资格审核色图哦~')
+        return
+    else:
+        test_conn
+        sql="SELECT id,url FROM LocalSetu where (pixiv_id = 0 or verify = 1) and id >= ?"
+        #sql="SELECT id,url FROM bot.localsetu where id = 759 or id =760 or id=761 ORDER BY id limit 1"
+        cursor.execute(sql,(id,))
+        results = cursor.fetchall()
+        id = 0
+        success = 0
+        failed = 0
+        for row in results:
+            id = row[0] #参数初始化
+            url= setu_folder+'/'+row[1]
+            #url= 'https://pixiv.cat/92252996.jpg'
+            pixiv_tag=''
+            pixiv_tag_t=''
+            pixiv_img_url=''
+            r18=0
+            print(f'id='+ str(id))
+            pixiv_id,index_name=get_pixiv_id(url)
+            if not pixiv_id:
+                print('获取失败了~')
+                await bot.send(ev, f'id:{id}自动审核失败，可能刚上传至P站，请进行人工审核哦~[CQ:at,qq={str(user)}]')
+                failed += 1
+                time.sleep(1)
+            else:
+                page = re.search(r'_p(\d+)',index_name,re.X)
+                if not page:
+                    pagenum = 0
+                else:
+                    pagenum = page.group(1)
+                pixiv_tag,pixiv_tag_t,r18,pixiv_img_url=get_pixiv_tag_url(pixiv_id,pagenum)
+                if not pixiv_tag:
+                    print('无法获取原画，该原画可能已被删除')
+                    await bot.send(ev, f'id:{id}自动审核失败，可能原画已被删除，请进行人工审核哦~[CQ:at,qq={str(user)}]')
+                    failed += 1
+                    time.sleep(1)
+                else:
+                    pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.cat")
+                    sql = "update LocalSetu set pixiv_id = ?,pixiv_tag = ?,pixiv_tag_t = ?,r18 = ?,pixiv_url = ?,verify = ? where id = ?"
+                    cursor.execute(sql,(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url,0,id))
+                    conn.commit()
+                    print(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url)
+                    await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
+                    success += 1
+        await bot.send(ev,f'成功'+str(success)+f'张\n失败'+str(failed)+f'张')
