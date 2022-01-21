@@ -47,10 +47,6 @@ class MyThread(threading.Thread):
         threading.Thread.__init__(self)
         self.func = func
         self.name = name
-
-
-
-
         self.args = args
 
     def run(self):
@@ -147,7 +143,7 @@ def verify(id,url):
             cursor1.execute(sql,(id,))
             verify = 1
         else:
-            pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.cat")
+            pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
             sql = "update LocalSetu set pixiv_id = ?,pixiv_tag = ?,pixiv_tag_t = ?,r18 = ?,pixiv_url = ? where id = ?"
             cursor1.execute(sql,(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url,id))
     #lock=threading.Lock()#锁，暂时改为新建连接
@@ -317,7 +313,7 @@ async def get_original_setu(bot, ev: CQEvent):
                     await bot.send(ev, '无法获取原画，该原画可能已被删除')
                     return
                 else:
-                    pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.cat")
+                    pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
                     pixiv_name = os.path.split(pixiv_img_url)[1]
                     new_download(pixiv_img_url,os.path.join(setu_folder,pixiv_name))
                     sql = "update LocalSetu set pixiv_id = ?,pixiv_tag = ?,pixiv_tag_t = ?,r18 = ?,pixiv_url = ?,pixiv_name = ? where id = ?"
@@ -777,7 +773,7 @@ async def auto_verify(bot, ev: CQEvent):
                     failed += 1
                     time.sleep(1)
                 else:
-                    pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.cat")
+                    pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
                     sql = "update LocalSetu set pixiv_id = ?,pixiv_tag = ?,pixiv_tag_t = ?,r18 = ?,pixiv_url = ?,verify = ? where id = ?"
                     cursor.execute(sql,(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url,0,id))
                     conn.commit()
@@ -785,3 +781,25 @@ async def auto_verify(bot, ev: CQEvent):
                     await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
                     success += 1
         await bot.send(ev,f'成功'+str(success)+f'张\n失败'+str(failed)+f'张')
+
+
+@sv.on_prefix(('Pid','pid'))
+async def from_pid_get_image(bot, ev: CQEvent):
+    id = str(ev.message).strip()
+    if not id or id=="" or not id.isdigit():
+        await bot.send(ev, "请在后面加上要查看的涩图P站id~")
+        return
+    try:      
+        pixiv_tag,pixiv_tag_t,r18,pixiv_img_url=get_pixiv_tag_url(id,0)
+        if not pixiv_tag:
+            await bot.send(ev, '无法获取图片，该图片可能已被删除')
+            return
+        pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
+     #   await bot.send(ev,f"{pixiv_img_url}")
+        await bot.send(ev,f'[CQ:image,file={pixiv_img_url}]'+ f'\n原图链接：https://pixiv.net/i/{id}' + f'\n反代链接:{pixiv_img_url}')
+    except CQHttpError:
+        sv.logger.error(f"发送图片{id}失败")
+        try:
+            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
+        except:
+            pass
