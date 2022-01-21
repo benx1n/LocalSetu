@@ -77,9 +77,10 @@ SETU_help="""LocalSetu涩图帮助指南：
 - -申请删除色图[ID]:提交色图删除申请，自动推送至审核人员
 - -修改TAG[ID][TAG]：修改指定ID的自定义TAG
 - -反和谐[ID]：色图被TX屏蔽时使用该指令，进行一次反和谐，后续发送色图均使用反和谐后文件
+- -PID/pid[ID]:通过pixivID查看P站原图
 - -上传统计：让我康康谁才是LSP！
 - -[BETA]sql：批量涩图，sql+数量+空格+条件，如sql10 id>1000，条件可参考sql表结构
-- -github链接：https://github.com/benx1n/LocalSetu 有问题欢迎提issue
+- -github链接：https://github.com/pcrbot/LocalSetu 有问题欢迎提issue
 =======Shokaku限定功能：
 - -gkd：在线图库，使用方法[r18]TAG+涩图，可使用 & 和 | 将多个TAG进行组合，如r18明日方舟|碧蓝航线&白丝|黑丝gkd，则会查找（明日方舟或碧蓝航线）且是（黑丝或白丝）的r18涩图
 - -sql：批量本地涩图，sql+数量+空格+条件，如sql10 id>1000，条件可参考sql表结构
@@ -783,7 +784,7 @@ async def auto_verify(bot, ev: CQEvent):
         await bot.send(ev,f'成功'+str(success)+f'张\n失败'+str(failed)+f'张')
 
 
-@sv.on_prefix(('Pid','pid'))
+@sv.on_prefix(('PID','pid'))
 async def from_pid_get_image(bot, ev: CQEvent):
     id = str(ev.message).strip()
     if not id or id=="" or not id.isdigit():
