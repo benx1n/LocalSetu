@@ -80,11 +80,10 @@ SETU_help="""LocalSetu涩图帮助指南：
 - -PID/pid[ID]:通过pixivID查看P站原图
 - -上传统计：让我康康谁才是LSP！
 - -[BETA]sql：批量涩图，sql+数量+空格+条件，如sql10 id>1000，条件可参考sql表结构
-- -github链接：https://github.com/pcrbot/LocalSetu 有问题欢迎提issue
+- -仓库地址：https://github.com/pcrbot/LocalSetu 有问题欢迎提issue
 =======Shokaku限定功能：
 - -gkd：在线图库，使用方法[r18]TAG+涩图，可使用 & 和 | 将多个TAG进行组合，如r18明日方舟|碧蓝航线&白丝|黑丝gkd，则会查找（明日方舟或碧蓝航线）且是（黑丝或白丝）的r18涩图
-- -sql：批量本地涩图，sql+数量+空格+条件，如sql10 id>1000，条件可参考sql表结构
-- -搜图：@bot+图或发送搜图进入搜图模式
+- -搜图：@bot+图或发送搜图进入搜图模式，可带参数指定搜索引擎 --book为搜本子，--anime为搜番剧
 =======审核人员有以下操作：
 = =审核色图[上传][删除]：进入审核模式，每次发送待审核的色图，使用指令[保留][删除]后自动发送下一张，发送[退出审核]或20秒无操作自动退出
 = =快速审核[ID]：快速通过指定ID的申请（默认保留）
@@ -581,9 +580,9 @@ async def verify_setu(bot, ev: CQEvent):
         await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
         return
     if ev['prefix'] == '审核色图上传':
-        sql="select url,user,date,id from LocalSetu where verify=1 order by random() limit 1"
+        sql="select url,user,date,id,man from LocalSetu where verify=1 order by random() limit 1"
     elif ev['prefix'] == '审核色图删除':
-        sql="select url,user,date,id from LocalSetu where verify=2 order by random() limit 1"
+        sql="select url,user,date,id,man from LocalSetu where verify=2 order by random() limit 1"
     ve.sql_state,ve.flag=0,0
     try:
         while ve.flag < 40:
@@ -600,7 +599,8 @@ async def verify_setu(bot, ev: CQEvent):
                 user=results[1]
                 date=results[2]
                 ve.id=results[3]
-                await bot.send(ev, '当前审核的图片为'+str(MessageSegment.image(f'file:///{os.path.abspath(ve.url)}'))+f'ID：{ve.id}\n来源为[CQ:at,qq={str(user)}]\n上传时间:{date}')
+                man=results[4]
+                await bot.send(ev, '当前审核的图片为'+str(MessageSegment.image(f'file:///{os.path.abspath(ve.url)}'))+f'ID：{ve.id}\n来源为[CQ:at,qq={str(user)}]\n类型为{man}\n上传时间:{date}')
                 ve.sql_state,ve.switch = 1,1
             await asyncio.sleep(0.5)
         await bot.send(ev, '20秒过去了，审核结束~')
