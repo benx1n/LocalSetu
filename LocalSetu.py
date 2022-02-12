@@ -57,7 +57,7 @@ class MyThread(threading.Thread):
     def getResult(self):
         return self.res
 
-sv = Service('LocalSetu', manage_priv=priv.SUPERUSER, enable_on_default=True, visible=False)
+sv = Service('LocalSetu', manage_priv=priv.SUPERUSER, enable_on_default=True)
 setu_folder = R.get('img/setu/').path
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
@@ -796,8 +796,17 @@ async def from_pid_get_image(bot, ev: CQEvent):
             await bot.send(ev, '无法获取图片，该图片可能已被删除')
             return
         pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
+        
+        #####反和谐
+        Anti_harmony_url=setu_folder+"/Anti_harmony_777"
+        await download(pixiv_img_url, Anti_harmony_url)       
+        img=Image.open(Anti_harmony_url)
+        img=image_random_one_pixel(img)
+        img.save(Anti_harmony_url,'jpeg',quality=75)
+
      #   await bot.send(ev,f"{pixiv_img_url}")
-        await bot.send(ev,f'[CQ:image,file={pixiv_img_url}]'+ f'\n原图链接：https://pixiv.net/i/{id}' + f'\n反代链接:{pixiv_img_url}')
+        
+        await bot.send(ev,str(MessageSegment.image(f'file:///{os.path.abspath(Anti_harmony_url)}'))+f'\n本图片进过反和谐，若有需要请从反代链接下载'+ f'\n原图链接：https://pixiv.net/i/{id}' + f'\n反代链接:{pixiv_img_url}')
     except CQHttpError:
         sv.logger.error(f"发送图片{id}失败")
         try:
