@@ -29,6 +29,7 @@
     >pip install selenium
     >python pixiv_auth.py login
     >```
+    >提示chromedriver版本不一致请从[官网](http://chromedriver.storage.googleapis.com/index.html)下载对应版本驱动<br>
     >可能会出现Cloudflare验证，手动验证或切换其他代理即可通过<br>
     >成功后会在窗口内自动显示`refresh_token`<br>
     >注：如果在墙内访问，请**手动设置** `REQUESTS_KWARGS.proxies` 的代理，不然获取code后无法正确提交请求到Pixiv(现象是 `[INFO] Get code: xxxxx` 后一直卡住，未requests配置代理即可)

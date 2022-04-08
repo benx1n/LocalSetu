@@ -37,7 +37,7 @@ _nlmt = DailyNumberLimiter(_max)
 _flmt = FreqLimiter(5)
 
 _REQUESTS_KWARGS = {
-'proxies': {
+'proxies':{
       'https': proxy,
       }
 }
@@ -103,7 +103,7 @@ async def download(url, path):
                 f.write(content)
 
 def new_download(url, path):
-    img_file = requests.get(url)
+    img_file = requests.get(url,**_REQUESTS_KWARGS)
     with open(path, 'wb') as f:
         f.write(img_file.content)
     return url
@@ -178,7 +178,7 @@ def get_pixiv_id(url):
 def get_pixiv_tag_url(pixiv_id,page):
     try:
         if proxy_on:
-            api = AppPixivAPI()
+            api = AppPixivAPI(**_REQUESTS_KWARGS)
             api.set_accept_language('zh-cn')
             api.auth(refresh_token=refresh_token)
             json_result = api.illust_detail(pixiv_id)
@@ -263,7 +263,7 @@ async def choose_setu(bot, ev):
         if verify:
             await bot.send(ev,"该图正在等待审核，暂不支持查看~")
             return
-        if tag:
+        if not tag:
             tag = f'当前TAG为空，您可以发送修改TAG{id}进行编辑~'
         else:
             tag = f'自定义TAG:{str(tag)}'
@@ -798,15 +798,18 @@ async def from_pid_get_image(bot, ev: CQEvent):
         pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
         
         #####反和谐
+       # await bot.send(ev,f"{pixiv_img_url}") 
         Anti_harmony_url=setu_folder+"/Anti_harmony_777"
-        await download(pixiv_img_url, Anti_harmony_url)       
+        await bot.send(ev, '正在获取图片。。。请稍后。')
+        new_download(pixiv_img_url, Anti_harmony_url)   
         img=Image.open(Anti_harmony_url)
         img=image_random_one_pixel(img)
-        img.save(Anti_harmony_url,'jpeg',quality=75)
+        Anti_harmony_url = Anti_harmony_url + '8'
+        img.save(Anti_harmony_url,'PNG',quality=75)
 
      #   await bot.send(ev,f"{pixiv_img_url}")
         
-        await bot.send(ev,str(MessageSegment.image(f'file:///{os.path.abspath(Anti_harmony_url)}'))+f'\n本图片进过反和谐，若有需要请从反代链接下载'+ f'\n原图链接：https://pixiv.net/i/{id}' + f'\n反代链接:{pixiv_img_url}')
+        await bot.send(ev,str(MessageSegment.image(f'file:///{os.path.abspath(Anti_harmony_url)}'))+f'\n本图片进过反和谐，若有原图需要请从反代链接下载'+ f'\n原图链接：https://pixiv.net/i/{id}' + f'\n反代链接:{pixiv_img_url}')
     except CQHttpError:
         sv.logger.error(f"发送图片{id}失败")
         try:
