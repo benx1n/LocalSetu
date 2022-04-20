@@ -610,7 +610,7 @@ async def verify_setu(bot, ev: CQEvent):
 
 @sv.on_fullmatch(('保留','删除','退出审核'))
 async def verify_complete(bot, ev: CQEvent):
-    if not ve.switch and int(ev["user_id"]) not in verifies:
+    if not ve.switch or int(ev["user_id"]) not in verifies:
         return
     try:
         test_conn()
