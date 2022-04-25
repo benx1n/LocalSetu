@@ -26,7 +26,6 @@
 *   windows环境（其他环境您也可以在windows上得到refresh token后给服务器使用）
     >在项目文件夹下执行
     >```
-    >pip install selenium
     >python pixiv_auth.py login
     >```
     >提示chromedriver版本不一致请从[官网](http://chromedriver.storage.googleapis.com/index.html)下载对应版本驱动<br>
@@ -36,7 +35,7 @@
 
 
 4. 将配置文件 `config_default.json` 重命名为 `config.json` , 修改配置文件中的设置<br>
-*   若您不准备使用代理，且能正常访问sauceNAO，请在setu.py中作下列修改（若您不能访问sauceNAO，请将配置文件中的on设置为0）
+*   若您不准备使用代理，且能正常访问sauceNAO，请在setu.py中作下列修改（若您不能访问sauceNAO，请将配置文件中的on设置为0）(无代理模式目前仍在重构，推荐使用代理)
     >删除get_pixiv_id函数中的`,**_REQUESTS_KWARGS`<br>
     >修改get_pixiv_tag_url函数中如下部分
     >```        
@@ -80,22 +79,7 @@
     >if event.detail_type != 'group':
     >    return
     >```
-    >修改Hoshinobot文件夹中`.\hoshino\service.py`内on_message函数,将event='group'及结尾的event替换为*events<br>
-    >```
-    >def on_message(self, *events) -> Callable:
-    >def deco(func) -> Callable:
-    >    @wraps(func)
-    >    async def wrapper(ctx):
-    >        if self._check_all(ctx):
-    >            try:
-    >                return await func(self.bot, ctx)
-    >            except Exception as e:
-    >                self.logger.error(f'{type(e)} occured when {func.__name__} handling message {ctx["message_id"]}.')
-    >                self.logger.exception(e)
-    >            return
-    >    return self.bot.on_message(*events)(wrapper)
-    >return deco
-    >```
+
 ## 指令说明
 |  指令   | 必要参数  |可选参数|说明|
 |  :----  | :----  | :---- |:----|
