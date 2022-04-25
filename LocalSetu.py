@@ -84,7 +84,7 @@ SETU_help="""LocalSetu涩图帮助指南：
 =======Shokaku限定功能：
 - -gkd：在线图库，使用方法[r18]TAG+涩图，可使用 & 和 | 将多个TAG进行组合，如r18明日方舟|碧蓝航线&白丝|黑丝gkd，则会查找（明日方舟或碧蓝航线）且是（黑丝或白丝）的r18涩图
 - -搜图：@bot+图或发送搜图进入搜图模式，可带参数指定搜索引擎 --book为搜本子，--anime为搜番剧
-=======审核人员有以下操作：
+=======审核组用户有以下指令：
 = =审核色图[上传][删除]：进入审核模式，每次发送待审核的色图，使用指令[保留][删除]后自动发送下一张，发送[退出审核]或20秒无操作自动退出
 = =快速审核[ID]：快速通过指定ID的申请（默认保留）
 = =重新自动审核/重新获取TAG[起始ID]：重新审核/获取TAG，适用于首次上传由于SauceNAO接口限制而导致的批量自动审核失败
@@ -235,14 +235,14 @@ async def choose_setu(bot, ev):
                 sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify FROM LocalSetu where man = ? AND id = ? ORDER BY random() limit 1"
                 cursor.execute(sql,(is_man,searchtag))
             else:   #tag
-                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify FROM LocalSetu where man = ? AND (tag like ? OR pixiv_tag like ? OR pixiv_tag_t like ?) ORDER BY random() limit 1"
+                sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify FROM LocalSetu where man = ? AND (tag like ? OR pixiv_tag like ? OR pixiv_tag_t like ?) AND verify = 0 ORDER BY random() limit 1"
                 searchtag = '%'+searchtag+'%'
                 cursor.execute(sql,(is_man,searchtag,searchtag,searchtag))
         elif id1==1:#全随机
-            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify FROM LocalSetu where man = ? ORDER BY random() limit 1"
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify FROM LocalSetu where man = ? AND verify = 0 ORDER BY random() limit 1"
             cursor.execute(sql,(is_man,))
         elif id1==2:#指定人
-            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify from LocalSetu where man = ? AND user = ? ORDER BY random() limit 1"
+            sql="SELECT id,url,anti_url,user,date,tag,pixiv_tag_t,pixiv_id,pixiv_url,verify from LocalSetu where man = ? AND user = ? AND verify = 0 ORDER BY random() limit 1"
             cursor.execute(sql,(is_man,str(user)))
         conn.commit()
         result = cursor.fetchone()
@@ -429,7 +429,10 @@ async def load_setu(bot,ev):
                 else:
                     await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
                     for ves in verifies:
-                        await bot.send_private_msg(self_id=ev.self_id, user_id=int(ves), message=f'有新的上传申请,id:{id}'+f'[CQ:image,file={img_url}]')
+                        if_man_txt = '色图'
+                        if is_man:
+                            if_man_txt = '男图'
+                        await bot.send_private_msg(self_id=ev.self_id, user_id=int(ves), message=f'有新的上传申请,id:{id}\n上传者:{user} 分区:{if_man_txt}'+f'[CQ:image,file={img_url}]')
         else:
             await bot.send(ev, f'由于您未开启代理，无法自动获取色图信息')
     except Exception as e:
