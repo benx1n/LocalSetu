@@ -120,12 +120,14 @@
 ## 预览
 <div align="left">
   <img src="https://s2.loli.net/2022/04/25/FWvCZa5lOoyH1fe.png" width="300" />
+  <img src="https://s2.loli.net/2022/04/25/gQeFXOYl6kbZEtz.png" width="300" />
   <img src="https://s2.loli.net/2022/04/25/OWTAKRtysQFlZ13.png" width="600" />
 </div>
 
 ## TODO
 
 - [x] 改用Sqlite
+- [ ] 重构代码屎山
 - [ ] WEB控制台
 - [ ] 在线图库API
 - [ ] 更自由的组合条件查询
