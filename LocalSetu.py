@@ -342,6 +342,9 @@ async def load_setu_in_message(bot, ev:CQEvent):
     if li.is_private == 0 :   #是否群聊
         if li.group_id!=ev['group_id']:     #开启色图模式的和发图的是不是同一个群
             return
+    elif li.is_private == 1:
+        if ev['message_type'] != 'private':
+            return
     if li.user_id!=ev['user_id'] :      #判断是不是同一个人
         return
     if not (str(ev.message).find("[CQ:image")+1):  #判断收到的信息是否为图片，不是就退出
@@ -366,6 +369,7 @@ async def give_setu(bot, ev:CQEvent):
                 li.is_private = 1
             else:
                 li.group_id=ev['group_id']
+                li.is_private = 0
             li.user_id=ev['user_id']
             while li.flag<40:
                 li.flag = li.flag + 1
