@@ -462,10 +462,10 @@ async def del_setu(bot, ev: CQEvent):
                     await bot.send(ev, "这张涩图不是您上传的哦~如果觉得不够涩请使用'申请删除色图'指令")
                     return
                 else:
-                    os.remove(os.path.join(setu_folder, url))
                     sql="delete from LocalSetu where id = ?"
                     cursor.execute(sql,(id,))
                     conn.commit()
+                    os.remove(os.path.join(setu_folder, url))
                     await bot.send(ev, 'OvO~涩图删掉了~')
         except Exception as e:
             await bot.send(ev, 'QAQ~删涩图的时候出现了问题，但一定不是我的问题~')
@@ -604,7 +604,10 @@ async def verify_setu(bot, ev: CQEvent):
                 date=results[2]
                 ve.id=results[3]
                 man=results[4]
-                await bot.send(ev, '当前审核的图片为'+str(MessageSegment.image(f'file:///{os.path.abspath(ve.url)}'))+f'ID：{ve.id}\n来源为[CQ:at,qq={str(user)}]\n类型为{man}\n上传时间:{date}')
+                man_text = '色图'
+                if man:
+                    man_text = '男图'
+                await bot.send(ev, '当前审核的图片为'+str(MessageSegment.image(f'file:///{os.path.abspath(ve.url)}'))+f'ID：{ve.id}\n来源为[CQ:at,qq={str(user)}]\n类型为:{man_text}\n上传时间:{date}')
                 ve.sql_state,ve.switch = 1,1
             await asyncio.sleep(0.5)
         await bot.send(ev, '20秒过去了，审核结束~')
@@ -761,10 +764,11 @@ async def auto_verify(bot, ev: CQEvent):
             print(f'id='+ str(id))
             pixiv_id,index_name=get_pixiv_id(url)
             if not pixiv_id:
-                print('获取失败了~')
-                await bot.send(ev, f'id:{id}自动审核失败，可能刚上传至P站，请进行人工审核哦~[CQ:at,qq={str(user)}]')
+                #print('获取失败了~')
+                #await bot.send(ev, f'id:{id}自动审核失败，可能刚上传至P站，请进行人工审核哦~[CQ:at,qq={str(user)}]')
+                sv.logger.info(f'id:{id}未通过自动审核,可能刚上传至P站或无法访问saucenao')
                 failed += 1
-                time.sleep(1)
+                #time.sleep(1)
             else:
                 page = re.search(r'_p(\d+)',index_name,re.X)
                 if not page:
@@ -773,19 +777,22 @@ async def auto_verify(bot, ev: CQEvent):
                     pagenum = page.group(1)
                 pixiv_tag,pixiv_tag_t,r18,pixiv_img_url=get_pixiv_tag_url(pixiv_id,pagenum)
                 if not pixiv_tag:
-                    print('无法获取原画，该原画可能已被删除')
-                    await bot.send(ev, f'id:{id}自动审核失败，可能原画已被删除，请进行人工审核哦~[CQ:at,qq={str(user)}]')
+                    #print('无法获取原画，该原画可能已被删除')
+                    #await bot.send(ev, f'id:{id}自动审核失败，可能原画已被删除，请进行人工审核哦~[CQ:at,qq={str(user)}]')
+                    sv.logger.info(f'id:{id}未通过自动审核,可能原画已被删除或无法访问P站API')
                     failed += 1
-                    time.sleep(1)
+                    #time.sleep(1)
                 else:
                     pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
                     sql = "update LocalSetu set pixiv_id = ?,pixiv_tag = ?,pixiv_tag_t = ?,r18 = ?,pixiv_url = ?,verify = ? where id = ?"
                     cursor.execute(sql,(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url,0,id))
                     conn.commit()
-                    print(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url)
-                    await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
+                    #print(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url)
+                    #await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
+                    sv.logger.info(f'id:{id}通过自动审核,已自动为您获取原图PixivID:{pixiv_id}')
                     success += 1
-        await bot.send(ev,f'成功'+str(success)+f'张\n失败'+str(failed)+f'张')
+            await asyncio.sleep(5)
+        await bot.send(ev,f'重新自动审核完成\n成功'+str(success)+f'张\n失败'+str(failed)+f'张')
 
 
 @sv.on_prefix(('PID','pid'))
