@@ -79,6 +79,22 @@
     >if event.detail_type != 'group':
     >    return
     >```
+        >修改Hoshinobot文件夹中`.\hoshino\service.py`内on_message函数,将event='group'及结尾的event替换为*events<br>
+    >```
+    >def on_message(self, *events) -> Callable:
+    >def deco(func) -> Callable:
+    >    @wraps(func)
+    >    async def wrapper(ctx):
+    >        if self._check_all(ctx):
+    >            try:
+    >                return await func(self.bot, ctx)
+    >            except Exception as e:
+    >                self.logger.error(f'{type(e)} occured when {func.__name__} handling message {ctx["message_id"]}.')
+    >                self.logger.exception(e)
+    >            return
+    >    return self.bot.on_message(*events)(wrapper)
+    >return deco
+    >```
 
 ## 指令说明
 |  指令   | 必要参数  |可选参数|说明|
