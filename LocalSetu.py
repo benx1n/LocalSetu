@@ -15,10 +15,10 @@ from pixivpy3 import *
 from PicImageSearch import SauceNAO
 from nonebot.exceptions import CQHttpError
 import hoshino
-from hoshino import R, Service, priv
+from hoshino import R, Service, priv, get_bot
 from hoshino.util import FreqLimiter, DailyNumberLimiter
 from hoshino.typing import CQEvent, MessageSegment
-from nonebot import on_command
+from nonebot import NoticeSession, on_command
 
 
 with open('./hoshino/modules/LocalSetu/config.hjson','r', encoding='UTF-8') as json_data_file:
@@ -351,7 +351,20 @@ async def load_setu_in_message(bot, ev:CQEvent):
         return
     await load_setu(bot,ev)
     li.flag=0
-
+    
+@sv.on_notice()
+async def load_setu_in_file(session: NoticeSession):
+    ev = session.event
+    if not li.switch:       #是否开启收图模式
+        return
+    if li.user_id!=ev['user_id'] :      #判断是不是同一个人
+        return
+    if not (str(ev).find("offline_file")+1):  #判断收到的信息是否为文件，不是就退出
+        return
+    bot = get_bot()
+    await load_setu(bot,ev)
+    li.flag=0
+  
 @sv.on_prefix(('上传色图','上传男图'))
 async def give_setu(bot, ev:CQEvent):
     try:
@@ -390,28 +403,48 @@ async def load_setu(bot,ev):
         #threads1 = []
         threads2 = []
         tasks1 = []
-        for seg in ev.message:
-            if seg.type == 'text':
-                tag=str(seg).strip()
-            elif seg.type == 'image':
-                img_url = seg.data['url']
-                setu_name = str(seg.data['file'])
-                user = str(ev['user_id'])
-                sql="SELECT id FROM LocalSetu where url = ?"
-                cursor.execute(sql,(setu_name,))
+        if (str(ev).find("offline_file")+1):    #文件
+            img_url = ev['file']['url']
+            setu_name = ev['file']['name']
+            user = str(ev['user_id'])
+            sql="SELECT id FROM LocalSetu where url = ?"
+            cursor.execute(sql,(setu_name,))
+            conn.commit()
+            result = cursor.fetchone()
+            if not result:
+                sql="INSERT OR IGNORE INTO LocalSetu (id,url,user,date,tag,man) VALUES (NULL,?,?,datetime('now'),?,?)"
+                cursor.execute(sql,(setu_name,user,tag,is_man))
+                id=cursor.lastrowid
                 conn.commit()
-                result = cursor.fetchone()
-                if not result:
-                    sql="INSERT OR IGNORE INTO LocalSetu (id,url,user,date,tag,man) VALUES (NULL,?,?,datetime('now'),?,?)"
-                    cursor.execute(sql,(setu_name,user,tag,is_man))
-                    id=cursor.lastrowid
+                #threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
+                tasks1.append(download(img_url, os.path.join(setu_folder,setu_name)))
+                await bot.send(ev, f'[CQ:image,file={img_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
+                threads2.append(MyThread(verify,(id,img_url),verify.__name__))
+            else:
+                await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')            
+        else:                               #图片
+            for seg in ev.message:
+                if seg.type == 'text':
+                    tag=str(seg).strip()
+                elif seg.type == 'image':
+                    img_url = seg.data['url']
+                    setu_name = str(seg.data['file'])
+                    user = str(ev['user_id'])
+                    sql="SELECT id FROM LocalSetu where url = ?"
+                    cursor.execute(sql,(setu_name,))
                     conn.commit()
-                    #threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
-                    tasks1.append(download(img_url, os.path.join(setu_folder,setu_name)))
-                    await bot.send(ev, f'[CQ:image,file={img_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
-                    threads2.append(MyThread(verify,(id,img_url),verify.__name__))
-                else:
-                    await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
+                    result = cursor.fetchone()
+                    if not result:
+                        sql="INSERT OR IGNORE INTO LocalSetu (id,url,user,date,tag,man) VALUES (NULL,?,?,datetime('now'),?,?)"
+                        cursor.execute(sql,(setu_name,user,tag,is_man))
+                        id=cursor.lastrowid
+                        conn.commit()
+                        #threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
+                        tasks1.append(download(img_url, os.path.join(setu_folder,setu_name)))
+                        await bot.send(ev, f'[CQ:image,file={img_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
+                        threads2.append(MyThread(verify,(id,img_url),verify.__name__))
+                    else:
+                        await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
         #for t in threads1:
         #    t.setDaemon(True)
         #    t.start()
@@ -437,6 +470,7 @@ async def load_setu(bot,ev):
         else:
             await bot.send(ev, f'由于您未开启代理，无法自动获取色图信息')
     except Exception as e:
+        print(e)
         await bot.send(ev, 'wuwuwu~上传出现了问题~')
 
 @sv.on_prefix(('删除涩图', '删除色图','删除男图'))
