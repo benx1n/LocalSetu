@@ -73,8 +73,8 @@ SETU_help="""LocalSetu涩图帮助指南：
 - -上传色/男图[TAG][图片][TAG][图片][TAG][图片]，其中TAG为可选参数，可跟多张图片
 - -上传色/男图[无参数]：进入上传模式，该模式下用户发送的所有图片均视为上传，无操作20秒后自动退出
 - -查看原图[ID]：可用于保存原画画质的色图
-- -删除色图[ID]：删除指定ID色图，非审核人员仅可删除本人上传的色图，删除他人色图请使用'申请删除色图'
-- -申请删除色图[ID]:提交色图删除申请，自动推送至审核人员
+- -删除色图[ID]：删除指定ID色图，非审核组成员仅可删除本人上传的色图，删除他人色图请使用'申请删除色图'
+- -申请删除色图[ID]:提交色图删除申请，自动推送至审核组成员
 - -修改TAG[ID][TAG]：修改指定ID的自定义TAG
 - -反和谐[ID]：色图被TX屏蔽时使用该指令，进行一次反和谐，后续发送色图均使用反和谐后文件
 - -PID/pid[ID]:通过pixivID查看P站原图
@@ -359,7 +359,7 @@ async def load_setu_in_file(session: NoticeSession):
         return
     if li.user_id!=ev['user_id'] :      #判断是不是同一个人
         return
-    if not (str(ev).find("offline_file")+1):  #判断收到的信息是否为文件，不是就退出
+    if not ((str(ev).find("'file': {")+1)):  #判断收到的信息是否为文件，不是就退出
         return
     bot = get_bot()
     await load_setu(bot,ev)
@@ -403,7 +403,7 @@ async def load_setu(bot,ev):
         #threads1 = []
         threads2 = []
         tasks1 = []
-        if (str(ev).find("offline_file")+1):    #文件
+        if ((str(ev).find("'file': {")+1)):    #文件
             img_url = ev['file']['url']
             setu_name = ev['file']['name']
             user = str(ev['user_id'])
