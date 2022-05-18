@@ -436,7 +436,7 @@ async def load_setu(bot,ev):
                     conn.commit()
                     result = cursor.fetchone()
                     if not result:
-                        sql="INSERT OR IGNORE INTO LocalSetu (id,url,user,date,tag,man,tencent_url) VALUES (NULL,?,?,datetime('now'),?,?,?)"
+                        sql="INSERT OR IGNORE INTO LocalSetu (id,url,user,date,tag,man,tencent_url) VALUES (NULL,?,?,datetime('now','localtime'),?,?,?)"
                         cursor.execute(sql,(setu_name,user,tag,is_man,img_url))
                         id=cursor.lastrowid
                         conn.commit()
