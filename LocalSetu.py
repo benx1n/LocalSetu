@@ -418,7 +418,7 @@ async def load_setu(bot,ev):
                 conn.commit()
                 #threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
                 tasks1.append(download(img_url, os.path.join(setu_folder,setu_name)))
-                await download(img_url, os.path.join(setu_folder,setu_name))
+                #await download(img_url, os.path.join(setu_folder,setu_name))
                 await bot.send(ev, f'[CQ:image,file={img_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
                 threads2.append(MyThread(verify,(id,img_url),verify.__name__))
             else:
@@ -452,13 +452,14 @@ async def load_setu(bot,ev):
         await asyncio.gather(*tasks1)
         if proxy_on:
             if len(threads2)>sauceNao_limit:
-                await bot.send(ev,'您本次上传的数量超过了sauceNAO30秒允许的最大值，部分图可能无法成功获取tag,请稍后尝试使用查看原图重新获取')
+                await bot.send(ev,'您本次上传的数量超过了sauceNAO30秒允许的最大值，部分图可能无法成功获取tag,请联系审核组或等待凌晨4点自动审核哦~')
             for t in threads2:
                 t.setDaemon(True)
                 t.start()
             for t in threads2:
                 t.join()
                 id,verifynum,pixiv_id,img_url= t.getResult()
+                txt =  await redownload_from_tencent(id)        #校验本地缺失文件
                 if not verifynum:
                     await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
                 else:
@@ -768,67 +769,7 @@ async def choose_setu(bot, ev):
             await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
         except:
             pass
-        
-@sv.on_prefix(('重新自动审核', '重新获取TAG'))
-async def auto_verify(bot, ev: CQEvent):
-    id = str(ev.message).strip()
-    user = ev['user_id']
-    if not id or id=="" or not id.isdigit():
-        await bot.send(ev, "请在后面加上起始ID")
-        return
-    if int(user) not in verifies:
-        await bot.send(ev,'你谁啊你，不是管理员没资格审核色图哦~')
-        return
-    else:
-        test_conn
-        sql="SELECT id,url FROM LocalSetu where (pixiv_id = 0 or verify = 1) and id >= ?"
-        #sql="SELECT id,url FROM bot.localsetu where id = 759 or id =760 or id=761 ORDER BY id limit 1"
-        cursor.execute(sql,(id,))
-        results = cursor.fetchall()
-        id = 0
-        success = 0
-        failed = 0
-        for row in results:
-            id = row[0] #参数初始化
-            url= setu_folder+'/'+row[1]
-            #url= 'https://pixiv.cat/92252996.jpg'
-            pixiv_tag=''
-            pixiv_tag_t=''
-            pixiv_img_url=''
-            r18=0
-            print(f'id='+ str(id))
-            pixiv_id,index_name=get_pixiv_id(url)
-            if not pixiv_id:
-                #print('获取失败了~')
-                #await bot.send(ev, f'id:{id}自动审核失败，可能刚上传至P站，请进行人工审核哦~[CQ:at,qq={str(user)}]')
-                sv.logger.info(f'id:{id}未通过自动审核,可能刚上传至P站或无法访问saucenao')
-                failed += 1
-                #time.sleep(1)
-            else:
-                page = re.search(r'_p(\d+)',index_name,re.X)
-                if not page:
-                    pagenum = 0
-                else:
-                    pagenum = page.group(1)
-                pixiv_tag,pixiv_tag_t,r18,pixiv_img_url=get_pixiv_tag_url(pixiv_id,pagenum)
-                if not pixiv_tag:
-                    #print('无法获取原画，该原画可能已被删除')
-                    #await bot.send(ev, f'id:{id}自动审核失败，可能原画已被删除，请进行人工审核哦~[CQ:at,qq={str(user)}]')
-                    sv.logger.info(f'id:{id}未通过自动审核,可能原画已被删除或无法访问P站API')
-                    failed += 1
-                    #time.sleep(1)
-                else:
-                    pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
-                    sql = "update LocalSetu set pixiv_id = ?,pixiv_tag = ?,pixiv_tag_t = ?,r18 = ?,pixiv_url = ?,verify = ? where id = ?"
-                    cursor.execute(sql,(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url,0,id))
-                    conn.commit()
-                    #print(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url)
-                    #await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
-                    sv.logger.info(f'id:{id}通过自动审核,已自动为您获取原图PixivID:{pixiv_id}')
-                    success += 1
-            await asyncio.sleep(5)
-        await bot.send(ev,f'重新自动审核完成\n成功'+str(success)+f'张\n失败'+str(failed)+f'张')
-
+         
 
 @sv.on_prefix(('PID','pid'))
 async def from_pid_get_image(bot, ev: CQEvent):
@@ -862,3 +803,112 @@ async def from_pid_get_image(bot, ev: CQEvent):
             await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
         except:
             pass
+
+@sv.on_prefix('重新下载')
+async def redownload_img_from_tencent(bot, ev):
+    id = str(ev.message).strip()
+    user = ev['user_id']
+    if not id or id=="" or not id.isdigit():
+        await bot.send(ev, "请在后面加上要重新下载的色图")
+        return
+    txt = await redownload_from_tencent(id)
+    await bot.send(ev,str(txt))
+    return
+
+@sv.on_prefix(('重新自动审核', '重新获取TAG'))
+async def auto_verify(bot, ev: CQEvent):
+    id = str(ev.message).strip()
+    user = ev['user_id']
+    if not id or id=="" or not id.isdigit():
+        await bot.send(ev, "请在后面加上起始ID")
+        return
+    if int(user) not in verifies:
+        await bot.send(ev,'你谁啊你，不是管理员没资格审核色图哦~')
+        return
+    else:
+        txt = await auto_verify(id)
+        await bot.send(ev,txt)
+
+async def redownload_from_tencent(id):
+    test_conn
+    sql="SELECT url,tencent_url FROM LocalSetu where id = ?"
+    cursor.execute(sql,(id,))
+    result = cursor.fetchone()
+    if not result:
+        txt = f'id{id}不存在~~~'
+        return txt
+    if not result[1]:
+        txt = f'id{id}的腾讯服务器url不存在~~~'
+        return txt
+    local_url = os.path.join(setu_folder,result[0])
+    if not os.path.exists(os.path.abspath(local_url)):
+        try:
+            await download(result[1], local_url)
+            txt = f'id{id}下载成功'
+        except:
+            txt = f'id{id}下载失败，可能是腾讯服务器url过期了~'
+    else:
+        txt = f'id{id}本地文件已存在哦~'
+    return txt
+
+async def auto_verify(id):
+    test_conn
+    sql="SELECT id,url FROM LocalSetu where (pixiv_id = 0 or verify = 1) and id >= ?"
+    #sql="SELECT id,url FROM bot.localsetu where id = 759 or id =760 or id=761 ORDER BY id limit 1"
+    cursor.execute(sql,(id,))
+    results = cursor.fetchall()
+    id = 0
+    success = 0
+    failed = 0
+    for row in results:
+        id = row[0] #参数初始化
+        url= setu_folder+'/'+row[1]
+        #url= 'https://pixiv.cat/92252996.jpg'
+        pixiv_tag=''
+        pixiv_tag_t=''
+        pixiv_img_url=''
+        r18=0
+        print(f'id='+ str(id))
+        pixiv_id,index_name=get_pixiv_id(url)
+        if not pixiv_id:
+            #print('获取失败了~')
+            #await bot.send(ev, f'id:{id}自动审核失败，可能刚上传至P站，请进行人工审核哦~[CQ:at,qq={str(user)}]')
+            sv.logger.info(f'id:{id}未通过自动审核,可能刚上传至P站或无法访问saucenao')
+            failed += 1
+            #time.sleep(1)
+        else:
+            page = re.search(r'_p(\d+)',index_name,re.X)
+            if not page:
+                pagenum = 0
+            else:
+                pagenum = page.group(1)
+            pixiv_tag,pixiv_tag_t,r18,pixiv_img_url=get_pixiv_tag_url(pixiv_id,pagenum)
+            if not pixiv_tag:
+                #print('无法获取原画，该原画可能已被删除')
+                #await bot.send(ev, f'id:{id}自动审核失败，可能原画已被删除，请进行人工审核哦~[CQ:at,qq={str(user)}]')
+                sv.logger.info(f'id:{id}未通过自动审核,可能原画已被删除或无法访问P站API')
+                failed += 1
+                #time.sleep(1)
+            else:
+                pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
+                sql = "update LocalSetu set pixiv_id = ?,pixiv_tag = ?,pixiv_tag_t = ?,r18 = ?,pixiv_url = ?,verify = ? where id = ?"
+                cursor.execute(sql,(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url,0,id))
+                conn.commit()
+                #print(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url)
+                #await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
+                sv.logger.info(f'id:{id}通过自动审核,已自动为您获取原图PixivID:{pixiv_id}')
+                success += 1
+        await asyncio.sleep(5)
+    return f'重新自动审核完成\n成功'+str(success)+f'张\n失败'+str(failed)+f'张'
+
+@sv.scheduled_job('cron',hour='4')
+async def re_download_verify(bot,ev):
+    test_conn
+    sql="SELECT id FROM LocalSetu where tencent_url is not NULL"
+    cursor.execute(sql)
+    results = cursor.fetchall()
+    for row in results:
+        txt = await redownload_from_tencent(row[0])
+    await bot.send(ev,'自动下载本地缺失文件完成')
+    await auto_verify(1)
+    return
