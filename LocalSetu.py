@@ -418,6 +418,7 @@ async def load_setu(bot,ev):
                 conn.commit()
                 #threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
                 tasks1.append(download(img_url, os.path.join(setu_folder,setu_name)))
+                await download(img_url, os.path.join(setu_folder,setu_name))
                 await bot.send(ev, f'[CQ:image,file={img_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
                 threads2.append(MyThread(verify,(id,img_url),verify.__name__))
             else:
@@ -435,8 +436,8 @@ async def load_setu(bot,ev):
                     conn.commit()
                     result = cursor.fetchone()
                     if not result:
-                        sql="INSERT OR IGNORE INTO LocalSetu (id,url,user,date,tag,man) VALUES (NULL,?,?,datetime('now'),?,?)"
-                        cursor.execute(sql,(setu_name,user,tag,is_man))
+                        sql="INSERT OR IGNORE INTO LocalSetu (id,url,user,date,tag,man,tencent_url) VALUES (NULL,?,?,datetime('now'),?,?,?)"
+                        cursor.execute(sql,(setu_name,user,tag,is_man,img_url))
                         id=cursor.lastrowid
                         conn.commit()
                         #threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
