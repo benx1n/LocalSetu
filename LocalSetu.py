@@ -902,13 +902,17 @@ async def auto_verify(id):
     return f'重新自动审核完成\n成功'+str(success)+f'张\n失败'+str(failed)+f'张'
 
 @sv.scheduled_job('cron',hour='4')
-async def re_download_verify(bot,ev):
+async def re_download_verify():
+    bot = hoshino.get_bot()
+    superid = hoshino.config.SUPERUSERS[0]
     test_conn
-    sql="SELECT id FROM LocalSetu where tencent_url is not NULL"
+    sql="SELECT id FROM LocalSetu where tencent_url is not NULL"        #下载缺失文件
     cursor.execute(sql)
     results = cursor.fetchall()
     for row in results:
         txt = await redownload_from_tencent(row[0])
-    await bot.send(ev,'自动下载本地缺失文件完成')
-    await auto_verify(1)
+    msg = '自动下载本地缺失文件完成'
+    await bot.send_private_msg(user_id=superid, message=msg)
+    msg = await auto_verify(1)                                          #重新自动审核
+    await bot.send_private_msg(user_id=superid, message=msg)
     return
