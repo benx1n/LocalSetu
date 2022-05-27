@@ -81,6 +81,9 @@ SETU_help="""LocalSetu涩图帮助指南：
 - -上传统计：让我康康谁才是LSP！
 - -[BETA]sql：批量涩图，sql+数量+空格+条件，如sql10 id>1000，条件可参考sql表结构
 - -仓库地址：https://github.com/pcrbot/LocalSetu 有问题欢迎提issue
+=======Shokaku限定功能：
+- -gkd：在线图库，使用方法[r18]TAG+涩图，可使用 & 和 | 将多个TAG进行组合，如r18明日方舟|碧蓝航线&白丝|黑丝gkd，则会查找（明日方舟或碧蓝航线）且是（黑丝或白丝）的r18涩图
+- -搜图：@bot+图或发送搜图进入搜图模式，可带参数指定搜索引擎 --book为搜本子，--anime为搜番剧
 =======审核组用户有以下指令：
 = =审核色图[上传][删除]：进入审核模式，每次发送待审核的色图，使用指令[保留][删除]后自动发送下一张，发送[退出审核]或20秒无操作自动退出
 = =快速审核[ID]：快速通过指定ID的申请（默认保留）
@@ -473,7 +476,7 @@ async def load_setu(bot,ev):
             await bot.send(ev, f'由于您未开启代理，无法自动获取色图信息')
     except Exception as e:
         print(e)
-        await bot.send(ev, 'wuwuwu~上传出现了问题~')
+        await bot.send(ev, f'wuwuwu~上传出现了问题~请联系维护者提交错误信息{e}')
 
 @sv.on_prefix(('删除涩图', '删除色图','删除男图'))
 async def del_setu(bot, ev: CQEvent):
