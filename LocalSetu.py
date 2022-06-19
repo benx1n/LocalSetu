@@ -343,7 +343,7 @@ async def load_setu_in_message(bot, ev:CQEvent):
     if not li.switch:       #是否开启收图模式
         return
     if li.is_private == 0 :   #是否群聊
-        if li.group_id!=ev['group_id']:     #开启色图模式的和发图的是不是同一个群
+        if 'group_id' in ev.keys() and li.group_id!=ev['group_id']:     #开启色图模式的和发图的是不是同一个群
             return
     elif li.is_private == 1:
         if ev['message_type'] != 'private':
