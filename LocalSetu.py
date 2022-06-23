@@ -623,9 +623,9 @@ async def verify_setu(bot, ev: CQEvent):
         await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
         return
     if ev['prefix'] == '审核色图上传':
-        sql="select url,user,date,id,man from LocalSetu where verify=1 order by random() limit 1"
+        sql="select url,user,date,id,man from LocalSetu where verify=1 ORDER BY id DESC limit 1"
     elif ev['prefix'] == '审核色图删除':
-        sql="select url,user,date,id,man from LocalSetu where verify=2 order by random() limit 1"
+        sql="select url,user,date,id,man from LocalSetu where verify=2 ORDER BY id DESC limit 1"
     ve.sql_state,ve.flag=0,0
     try:
         while ve.flag < 40:
