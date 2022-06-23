@@ -34,7 +34,7 @@
     >注：如果在墙内访问，请**手动设置** `REQUESTS_KWARGS.proxies` 的代理，不然获取code后无法正确提交请求到Pixiv(现象是 `[INFO] Get code: xxxxx` 后一直卡住，未requests配置代理即可)
 
 
-4. 将配置文件 `config_default.json` 拷贝一份后重命名为 `config.json` , 修改配置文件中的设置<br>
+4. 将配置文件 `config_default.hjson` 拷贝一份后重命名为 `config.hjson` , 修改配置文件中的设置<br>
 *   若您不准备使用代理，且能正常访问sauceNAO，请在setu.py中作下列修改（若您不能访问sauceNAO，请将配置文件中的on设置为0）(无代理模式目前仍在重构，推荐使用代理)
     >删除get_pixiv_id函数中的`,**_REQUESTS_KWARGS`<br>
     >修改get_pixiv_tag_url函数中如下部分
