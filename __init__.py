@@ -19,7 +19,7 @@ from hoshino.util import FreqLimiter, DailyNumberLimiter
 from hoshino.typing import CQEvent, MessageSegment
 from nonebot import NoticeSession, on_command
 from .src.utils import config
-from .src.get_image import get_local_image
+from .src.get_image import get_local_image,get_original_image
 
 
 verifies=config['verify_group']
@@ -105,7 +105,7 @@ async def send_local_setu(bot, ev):
             is_man = 0
         msg,url = await get_local_image(searchtag,qqid,search_type,is_man)
         if url:
-            await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(url)}') + msg))
+            await bot.send(ev, f"{str(MessageSegment.image(f'file:///{os.path.abspath(url)}'))}\n{msg}")
         else:
             await bot.send(ev, msg)
     except CQHttpError:
@@ -116,54 +116,25 @@ async def send_local_setu(bot, ev):
         except:
             pass
 
-#@sv.on_prefix(('查看原图','看看原图','看看大图','查看大图'))
-#async def get_original_setu(bot, ev: CQEvent):
-#    id = str(ev.message).strip()
-#    if not id or id=="" or not id.isdigit():
-#        await bot.send(ev, "请在后面加上要查看的涩图序号~")
-#        return
-#    try:
-#        test_conn()
-#        sql="SELECT pixiv_url,verify,pixiv_name,pixiv_id,url FROM LocalSetu where id = ?"
-#        cursor.execute(sql,(id,))
-#        conn.commit()
-#        results = cursor.fetchone()
-#        if not results:
-#            await bot.send(ev, '请检查id是否正确~')
-#            return
-#        elif results[1]:
-#            await bot.send(ev,"该涩图正在等待审核，暂不支持查看~")
-#            return
-#        pixiv_img_url = results[0]
-#        pixiv_name = results[2]
-#        pixiv_id = results[3]
-#        if not pixiv_name:
-#            await bot.send(ev, '本地没有找到记录，正在尝试获取原画')
-#            pixiv_id,index_name=get_pixiv_id(os.path.join(setu_folder,results[4]))
-#            if not pixiv_id:
-#                await bot.send(ev, '获取失败了~')
-#                return
-#            else:
-#                page = re.search(r'_p(\d+)',index_name,re.X)
-#                pixiv_tag,pixiv_tag_t,r18,pixiv_img_url=get_pixiv_tag_url(pixiv_id,page.group(1))
-#                if not pixiv_tag:
-#                    await bot.send(ev, '无法获取原画，该原画可能已被删除')
-#                    return
-#                else:
-#                    pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
-#                    pixiv_name = os.path.split(pixiv_img_url)[1]
-#                    new_download(pixiv_img_url,os.path.join(setu_folder,pixiv_name))
-#                    sql = "update LocalSetu set pixiv_id = ?,pixiv_tag = ?,pixiv_tag_t = ?,r18 = ?,pixiv_url = ?,pixiv_name = ? where id = ?"
-#                    cursor.execute(sql,(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url,pixiv_name,id))
-#                    conn.commit()
-#        url=os.path.join(setu_folder,pixiv_name)
-#        await bot.send(ev,MessageSegment.image(f'file:///{os.path.abspath(url)}') + f'\n原图链接：https://pixiv.net/i/{pixiv_id}' + f'\n反代链接:{pixiv_img_url}')
-#    except CQHttpError:
-#        sv.logger.error(f"发送图片{id}失败")
-#        try:
-#            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
-#        except:
-#            pass
+@sv.on_prefix(('查看原图','看看原图','看看大图','查看大图'))
+async def get_original_setu(bot, ev: CQEvent):
+    id = str(ev.message).strip()
+    if not id or id=="" or not id.isdigit():
+        await bot.send(ev, "请在后面加上要查看的涩图序号~")
+        return
+    try:
+        msg,url = await get_original_image(id,bot,ev)
+        if url:
+            await bot.send(ev, f"{str(MessageSegment.image(f'file:///{os.path.abspath(url)}'))}\n{msg}")
+        else:
+            await bot.send(ev, msg)
+    except CQHttpError:
+        traceback.print_exc()
+        sv.logger.error(f"发送图片{id}失败")
+        try:
+            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
+        except:
+            pass
 #
 #class load_images:
 #    def __init__(self):

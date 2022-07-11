@@ -11,7 +11,7 @@ config = hjson.load(open(config_path, 'r', encoding='utf8'))
 async def download(url, path, proxy = {}):
     async with httpx.AsyncClient(proxies=proxy) as client:
         resp = await client.get(url, timeout=None)
-        content = await resp.read()
+        content = resp.read()
         with open(path, 'wb') as f:
             f.write(content)
 
