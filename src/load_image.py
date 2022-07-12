@@ -41,9 +41,7 @@ async def reset_load_time(user_id):
 async def load_image(bot,ev,is_man):
     try:
         tag = ""
-        #threads1 = []
-        threads2 = []
-        tasks1 = []
+        tasks1,tasks2,tasks3 = [],[],[]
         if ((str(ev).find("'file': {")+1)):    #文件
             tencent_url = ev['file']['url']
             url = ev['file']['name']
@@ -51,13 +49,9 @@ async def load_image(bot,ev,is_man):
             result = loadImgDao().check_url(url)
             if not result:
                 id = loadImgDao().load_image(url,user,tag,is_man,tencent_url)
-                #threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
-                #tasks1.append(download(tencent_url, os.path.join(setu_folder,setu_name)))
-                await download(tencent_url, os.path.join(setu_folder,url))
-                await bot.send(ev, f'[CQ:image,file={tencent_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
-                #threads2.append(MyThread(verify,(id,tencent_url),verify.__name__))
-                verifynum,pixiv_id = await verify(id,tencent_url)
-                await send_verify_result(bot,ev,id,pixiv_id,tencent_url,verifynum,is_man)
+                tasks1.append(download(tencent_url, os.path.join(setu_folder,url)))
+                tasks2.append(bot.send(ev, f'[CQ:image,file={tencent_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}'))
+                tasks3.append(send_verify_result(bot,ev,id,tencent_url,is_man))
             else:
                 await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')    
                         
@@ -72,21 +66,19 @@ async def load_image(bot,ev,is_man):
                     result = loadImgDao().check_url(url)
                     if not result:
                         id = loadImgDao().load_image(url,user,tag,is_man,tencent_url)
-                        #threads1.append(MyThread(new_download,(img_url, os.path.join(setu_folder,setu_name)),verify.__name__))
-                        #tasks1.append(download(tencent_url, os.path.join(setu_folder,setu_name)))
-                        await download(tencent_url, os.path.join(setu_folder,url))
-                        await bot.send(ev, f'[CQ:image,file={tencent_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')
-                        #threads2.append(MyThread(verify,(id,tencent_url),verify.__name__))
-                        verifynum,pixiv_id = await verify(id,tencent_url)
-                        await send_verify_result(bot,ev,id,pixiv_id,tencent_url,verifynum,is_man)
+                        tasks1.append(download(tencent_url, os.path.join(setu_folder,url)))
+                        tasks2.append(bot.send(ev, f'[CQ:image,file={tencent_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}'))
+                        tasks3.append(send_verify_result(bot,ev,id,tencent_url,is_man))
                     else:
                         await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
+        await asyncio.gather(*tasks1,*tasks2,*tasks3)
     except:
         logger.error(traceback.format_exc())
         await bot.send(ev, f'wuwuwu~上传出现了问题~')
         
-async def send_verify_result(bot,ev,id,pixiv_id,tencent_url,verifynum,is_man):
+async def send_verify_result(bot,ev,id,tencent_url,is_man):
     try:
+        verifynum,pixiv_id = await verify(id,tencent_url)
         txt = await redownload_from_tencent(id)
         if not verifynum:
             await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
