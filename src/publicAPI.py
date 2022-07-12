@@ -10,13 +10,9 @@ from .dao import verifyDao
 from .utils import config,setu_folder
 
 pixiv_on = config['pixiv']['on']
-sauceNAO_token = config['sauceNAO']['token']
+sauceNAO_on = config['sauceNAO']['on']
 sauceNAO_proxy_on = config['sauceNAO']['proxy_on']
 pixiv_proxy_on = config['pixiv']['proxy_on']
-pixiv_refresh_token = config['pixiv']['refresh_token']
-pixiv_username = config['pixiv']['username']
-pixiv_password = config['pixiv']['password']
-proxy = config['proxies']['proxy']
 
 #获取图片pixiv_id
 async def get_pixiv_id(url):
@@ -25,24 +21,27 @@ async def get_pixiv_id(url):
     从sauceNAO上搜索图片，返回P站ID和文件名
     """
     try:
-        pixiv_id,sauceNAO_proxy = 0,None
-        if sauceNAO_proxy_on:
-            sauceNAO_proxy = proxy
-        async with Network(proxies = sauceNAO_proxy) as client:
-            saucenao = SauceNAO(api_key=sauceNAO_token, client=client, minsim = 60)
-            if url[:4] == 'http':               # 网络url
-                res = await saucenao.search(url=url)
-            else:                               # 本地文件
-                file = open(url, "rb")
-                res = await saucenao.search(file=file)
-        if res:
-            for raw in res.raw:
-                pixiv_id = raw.pixiv_id     
-                index_name = raw.index_name
-                if pixiv_id:
-                    return pixiv_id,index_name
-                else:
-                    return 0,''
+        if sauceNAO_on:
+            pixiv_id,sauceNAO_proxy = 0,None
+            if sauceNAO_proxy_on:
+                sauceNAO_proxy = config['proxies']['proxy']
+            async with Network(proxies = sauceNAO_proxy) as client:
+                saucenao = SauceNAO(api_key=config['sauceNAO']['token'], client=client, minsim = 60)
+                if url[:4] == 'http':               # 网络url
+                    res = await saucenao.search(url=url)
+                else:                               # 本地文件
+                    file = open(url, "rb")
+                    res = await saucenao.search(file=file)
+            if res:
+                for raw in res.raw:
+                    pixiv_id = raw.pixiv_id     
+                    index_name = raw.index_name
+                    if pixiv_id:
+                        return pixiv_id,index_name
+                    else:
+                        return 0,''
+            else:
+                return 0,''
         else:
             return 0,''
     except:
@@ -59,15 +58,15 @@ async def get_pixiv_tag_url(pixiv_id,page):
     try:
         if pixiv_on:
             if pixiv_proxy_on:
-                pixiv_proxy = proxy
+                pixiv_proxy = config['proxies']['proxy']
             else:
                 pixiv_proxy = None
             async with PixivClient(proxy = pixiv_proxy) as client:
                 aapi = AppPixivAPI(client=client,proxy = pixiv_proxy)
-                if pixiv_refresh_token:
-                    await aapi.login(refresh_token=pixiv_refresh_token)
-                elif pixiv_username and pixiv_password:
-                    await aapi.login(pixiv_username, pixiv_password)
+                if config['pixiv']['refresh_token']:
+                    await aapi.login(refresh_token=config['pixiv']['refresh_token'])
+                elif config['pixiv']['username'] and config['pixiv']['password']:
+                    await aapi.login(config['pixiv']['username'], config['pixiv']['password'])
                 aapi.set_accept_language('zh-cn')
                 json_result = await aapi.illust_detail(pixiv_id)
                 if not hasattr(json_result.illust,'title'):

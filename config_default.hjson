@@ -23,6 +23,8 @@
   },
   //sauceNAO相关设置
   "sauceNAO": {
+    //是否启用sauceNAO搜索功能，主要用于自动审核，关闭后默认进入待审核状态
+    "on": true,
     //是否开启代理
     "proxy_on": true,
     //sauceNAO API
