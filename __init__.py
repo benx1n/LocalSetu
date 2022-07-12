@@ -18,7 +18,7 @@ from .src.delete_image import delete_image
 from .src.normal_function import update_tag,anti_image,anti_image_temporary,redownload_from_tencent
 from .src.verify_image import start_verify,quit_verify,reset_verify_time,update_verify_state,VerifyImageProcess
 from .src.publicAPI import get_pixiv_id,get_pixiv_tag_url,auto_verify
-from .src.dao import verifyDao,normalDao
+from .src.dao import verifyDao,normalDao,update_db
 
 dir_path = Path(__file__).parent
 verify_group = config['verify_group']
@@ -401,6 +401,19 @@ async def start_auto_verify(bot, ev: CQEvent):
         else:
             txt = await auto_verify(id)
             await bot.send(ev,txt)
+    except:
+        logger.error(traceback.format_exc())
+        
+@sv.on_fullmatch(('更新数据库列表'))
+async def start_update_db(bot, ev: CQEvent):
+    try:
+        user = ev['user_id']
+        if int(user) != hoshino.config.SUPERUSERS[0]:
+            await bot.send(ev,'你谁啊你，不是SUPERUSER没资格操作数据库哦~')
+            return
+        else:
+            update_db()
+            await bot.send(ev,'数据库更新完成')
     except:
         logger.error(traceback.format_exc())
 

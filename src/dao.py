@@ -4,9 +4,28 @@ from pathlib import Path
 
 dir_path = Path(__file__).parent
 db_path = dir_path.parent/'LocalSetu.db'
+column_list = ['id','url','anti_url','user','date','tag','r18','man','pixiv_id','pixiv_tag','pixiv_tag_t','pixiv_name','pixiv_url','verify','tencent_url']
 
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
+cursor.execute(
+    '''create table if not exists LocalSetu(
+        id integer primary key not null,
+        url TEXT(255) not null,
+        anti_url TEXT(255) default '',
+        user integer(11) default null,
+        date text default null,
+        tag TEXT(255) default null,
+        r18 integer default 0,
+        man integer default 0,
+        pixiv_id integer(255) default 0,
+        pixiv_tag text(255) default '',
+        pixiv_tag_t text(255) default '',
+        pixiv_name TEXT(255) default '',
+        pixiv_url TEXT(255) default '',
+        verify integer default 0,
+        tencent_url TEXT(255))''')
+conn.commit()
 
 def test_conn():
     try:
@@ -14,6 +33,40 @@ def test_conn():
     except:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
+        
+def update_db():
+    test_conn()
+    cursor.execute('''select count(*) from pragma_table_info('LocalSetu')''')
+    column_num = cursor.fetchone()[0]
+    msg = ''
+    for each in column_list[1:column_num]:
+        msg += f"{each},"
+    msg = msg.strip(',')
+    sql = f"""
+    DROP table if exists TempOldTable;
+    ALTER TABLE LocalSetu RENAME TO TempOldTable;
+    create table if not exists LocalSetu(
+        id integer primary key not null,
+        url TEXT(255) not null,
+        anti_url TEXT(255) default '',
+        user integer(11) default null,
+        date text default null,
+        tag TEXT(255) default null,
+        r18 integer default 0,
+        man integer default 0,
+        pixiv_id integer(255) default 0,
+        pixiv_tag text(255) default '',
+        pixiv_tag_t text(255) default '',
+        pixiv_name TEXT(255) default '',
+        pixiv_url TEXT(255) default '',
+        verify integer default 0,
+        tencent_url TEXT(255));
+    INSERT INTO LocalSetu ({msg}) SELECT {msg} FROM TempOldTable;
+    DROP TABLE TempOldTable;
+    """
+    cursor.executescript(sql)
+    conn.commit()
+        
 
 class getImgDao:
     def __init__(self):
