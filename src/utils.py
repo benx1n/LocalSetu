@@ -3,10 +3,13 @@ from pathlib import Path
 import hjson
 import random
 import hashlib
+from hoshino import R
+
 
 dir_path = Path(__file__).parent
 config_path = dir_path.parent / 'config.hjson'
 config = hjson.load(open(config_path, 'r', encoding='utf8'))
+setu_folder = R.get('img/setu/').path
 
 async def download(url, path, proxy = {}):
     async with httpx.AsyncClient(proxies=proxy) as client:

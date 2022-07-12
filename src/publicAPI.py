@@ -27,10 +27,13 @@ async def get_pixiv_id(url):
         pixiv_id,sauceNAO_proxy = 0,None
         if sauceNAO_proxy_on:
             sauceNAO_proxy = proxy
-        file = open(url, "rb")
         async with Network(proxies = sauceNAO_proxy) as client:
             saucenao = SauceNAO(api_key=sauceNAO_token, client=client, minsim = 60)
-            res = await saucenao.search(file=file)
+            if url[:4] == 'http':               # 网络url
+                res = await saucenao.search(url=url)
+            else:                               # 本地文件
+                file = open(url, "rb")
+                res = await saucenao.search(file=file)
         if res:
             for raw in res.raw:
                 pixiv_id = raw.pixiv_id     
@@ -63,7 +66,7 @@ async def get_pixiv_tag_url(pixiv_id,page):
                     await aapi.login(pixiv_username, pixiv_password)
                 aapi.set_accept_language('zh-cn')
                 json_result = await aapi.illust_detail(pixiv_id)
-                if not json_result.illust.title:
+                if not hasattr(json_result.illust,'title'):
                     return '','',0,''
                 page_count = json_result.illust.page_count
                 illust = json_result.illust.tags
@@ -98,16 +101,17 @@ async def verify(id,url):
     返回：色图ID,审核状态,P站ID,待搜索图片url
     """
     try:
-        pixiv_id,index_name=get_pixiv_id(url)
+        pixiv_id,index_name = await get_pixiv_id(url)
         if not pixiv_id:
             verify = verifyDao().update_verify_stats(id,1)
         else:
             page = re.search(r'_p(\d+)',index_name,re.X)
-            pixiv_tag,pixiv_tag_t,r18,pixiv_url=get_pixiv_tag_url(pixiv_id,page.group(1))
+            pixiv_tag,pixiv_tag_t,r18,pixiv_url = await get_pixiv_tag_url(pixiv_id,page.group(1))
             if not pixiv_tag:
                 verify = verifyDao().update_verify_stats(id,1)
             else:
                 verify = verifyDao().update_verify_info(id, pixiv_id ,pixiv_tag ,pixiv_tag_t ,r18 ,pixiv_url)
-        return id,verify,pixiv_id,url
+        return verify,pixiv_id
     except:
         traceback.print_exc()
+        return 1,None

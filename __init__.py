@@ -1,4 +1,5 @@
 import os
+from tokenize import group
 import hjson
 import re
 from nonebot.typing import State_T
@@ -20,6 +21,7 @@ from hoshino.typing import CQEvent, MessageSegment
 from nonebot import NoticeSession, on_command
 from .src.utils import config
 from .src.get_image import get_local_image,get_original_image
+from .src.load_image import start_load, quit_load, reset_load_time, load_image, LoadImageProcess
 
 
 verifies=config['verify_group']
@@ -135,76 +137,65 @@ async def get_original_setu(bot, ev: CQEvent):
             await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
         except:
             pass
-#
-#class load_images:
-#    def __init__(self):
-#        self.group_id=""     #开启审核的群id
-#        self.user_id=""      #上传的人的id
-#        self.switch=0   #当前是否处于审核状态 0 不处于 1处于
-#        self.flag=0     #执行次数
-#        self.is_man=0   #是否男图
-#        self.is_private =0 #是否私聊
-#li=load_images()
-#
-#@sv.on_message()
-#async def load_setu_in_message(bot, ev:CQEvent):
-#    if not li.switch:       #是否开启收图模式
-#        return
-#    if li.is_private == 0 :   #是否群聊
-#        if 'group_id' in ev.keys() and li.group_id!=ev['group_id']:     #开启色图模式的和发图的是不是同一个群
-#            return
-#    elif li.is_private == 1:
-#        if ev['message_type'] != 'private':
-#            return
-#    if li.user_id!=ev['user_id'] :      #判断是不是同一个人
-#        return
-#    if not (str(ev.message).find("[CQ:image")+1):  #判断收到的信息是否为图片，不是就退出
-#        return
-#    await load_setu(bot,ev)
-#    li.flag=0
-#    
-#@sv.on_notice()
-#async def load_setu_in_file(session: NoticeSession):
-#    ev = session.event
-#    if not li.switch:       #是否开启收图模式
-#        return
-#    if li.user_id!=ev['user_id'] :      #判断是不是同一个人
-#        return
-#    if not ((str(ev).find("'file': {")+1)):  #判断收到的信息是否为文件，不是就退出
-#        return
-#    bot = get_bot()
-#    await load_setu(bot,ev)
-#    li.flag=0
-#  
-#@sv.on_prefix(('上传色图','上传男图'))
-#async def give_setu(bot, ev:CQEvent):
-#    try:
-#        li.is_man = 0
-#        if ev['prefix'] == '上传男图': 
-#            li.is_man = 1
-#        if not str(ev.message).strip() or str(ev.message).strip()=="":
-#            if li.switch:                                                #当前已经开启
-#                await bot.send(ev, '当前有人在上传~请稍等片刻~')
-#                return
-#            await bot.send(ev, '发涩图发涩图~开启收图模式~')
-#            li.switch=1
-#            li.flag=0
-#            if ev['message_type']== 'private':
-#                li.is_private = 1
-#            else:
-#                li.group_id=ev['group_id']
-#                li.is_private = 0
-#            li.user_id=ev['user_id']
-#            while li.flag<40:
-#                li.flag = li.flag + 1
-#                await asyncio.sleep(0.5)
-#            await bot.send(ev, '溜了溜了~')
-#            li.switch=0
-#            return
-#        await load_setu(bot,ev)
-#    except Exception as e:
-#        li.switch = 0
-#        await bot.send(ev, 'wuwuwu~上传失败了~')
+        
+@sv.on_prefix(('上传色图','上传男图'))
+async def start_load_image(bot, ev:CQEvent):
+    try:
+        is_man = 0
+        if ev['prefix'] == '上传男图': 
+            is_man = 1
+        if not str(ev.message).strip():
+            user_id=ev['user_id']
+            if LoadImageProcess[user_id].state:
+                await bot.send(ev, '您已经在上传模式中了哦~')
+                return
+            await bot.send(ev, '发涩图发涩图~开启收图模式~')
+            if ev['message_type']== 'private':
+                group_id=None
+                is_private = True
+            else:
+                group_id=ev['group_id']
+                is_private = False
+            msg = await start_load(group_id=group_id,is_private=is_private,user_id=user_id,is_man=is_man)
+            await bot.send(ev,msg)
+            return
+        await load_image(bot,ev,is_man)     #不进入上传模式，直接上传
+    except Exception as e:
+        traceback.print_exc()
+        await quit_load(user_id)
+        await bot.send(ev, 'wuwuwu~上传失败了~')
+        
+#监听:消息类型的图片
+@sv.on_message()
+async def is_load_image(bot, ev:CQEvent):
+    user_id=ev['user_id']
+    if not LoadImageProcess[user_id].state:       #是否处于上传模式
+        return
+    if not LoadImageProcess[user_id].is_private :     #是否群聊
+        if 'group_id' in ev.keys() and LoadImageProcess[user_id].group_id != ev['group_id']:     #开启色图模式的和发图的是不是同一个群
+            return
+    else:                                           #私聊
+        if ev['message_type'] != 'private':
+            return
+    if not (str(ev.message).find("[CQ:image")+1):  #判断收到的信息是否为图片，不是就退出
+        return
+    await reset_load_time(user_id)
+    await load_image(bot,ev,LoadImageProcess[user_id].is_man)
+    
+#监听:文件类型的图片  
+@sv.on_notice()
+async def is_load_file(session: NoticeSession):
+    ev = session.event
+    user_id=ev['user_id']
+    if not LoadImageProcess[user_id].state:       #是否处于上传模式
+        return
+    if not ((str(ev).find("'file': {")+1)):  #判断收到的信息是否为文件，不是就退出
+        return
+    bot = get_bot()
+    await reset_load_time(user_id)
+    await load_image(bot,ev,LoadImageProcess[user_id].is_man)
+  
+
 #
 #async def load_setu(bot,ev):
 #    try:

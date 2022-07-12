@@ -1,13 +1,12 @@
 import os
 import traceback
 import re
-from hoshino import R
 
-from .utils import config,download
+
+from .utils import config,download,setu_folder
 from .dao import getImgDao
 from .publicAPI import get_pixiv_id,get_pixiv_tag_url
 
-setu_folder = R.get('img/setu/').path
 pximgUrl = config['pixiv']['pximgUrl']
 
 async def get_local_image(search_tag, user, search_type=0, is_man= 0):
