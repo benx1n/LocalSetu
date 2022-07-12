@@ -19,6 +19,7 @@
 - [x] 支持上传男同图，指令区分（不是
 
 ## 首次部署
+>windows下推荐使用python3.9+，低版本似乎有一些奇怪的问题
 
 1. 在HoshinoBot的插件目录modules下clone本项目 `git clone https://github.com/benx1n/LocalSetu.git`
 2. 在项目文件夹下执行`pip install -r requirements.txt`安装依赖
