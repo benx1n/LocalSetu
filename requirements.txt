@@ -1,7 +1,7 @@
 hjson==3.0.2
 httpx==0.22.0
 loguru==0.6.0
-nonebot~=1.9.1
+nonebot~=1.8.1
 PicImageSearch==3.3.10
 Pillow==9.2.0
 PixivPy_Async==1.2.14

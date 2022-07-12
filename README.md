@@ -44,6 +44,7 @@
 1. 在项目文件夹下执行
     >```
     >git pull
+    >pip install -r requirements.txt
     >```
 2. 对比config_default中是否有新增配置项，同步至本地config
 3. 重启hoshinobot

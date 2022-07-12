@@ -44,7 +44,7 @@ async def anti_image(id):
         tem_name_url = os.path.join(setu_folder,"Anti_harmony_"+name) #临时文件，因为后面计算MD5需要的是文件而不是图片
         img = Image.open(url)
         img = await image_random_one_pixel(img)
-        img.save(tem_name_url,'jpeg',quality=75)
+        img.save(tem_name_url,'PNG',quality=75)
         new_MD5 = await image2MD5(tem_name_url)   #格式是xx.image
         new_url = os.path.join(setu_folder,new_MD5)
         os.rename(tem_name_url,new_url)
