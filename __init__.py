@@ -26,6 +26,7 @@ from .src.load_image import start_load, quit_load, reset_load_time, load_image, 
 from .src.delete_image import delete_image
 from .src.normal_function import update_tag,anti_image
 from .src.verify_image import start_verify,quit_verify,reset_verify_time,update_verify_state,VerifyImageProcess
+from .src.dao import verifyDao
 
 
 verify_group = config['verify_group']
@@ -246,24 +247,22 @@ async def verify_complete(bot, ev: CQEvent):
         await bot.send(ev, '出了点小问题，其实我觉得这图片挺涩的~')
         
 
-#@sv.on_prefix('快速审核')
-#async def quick_verify(bot, ev:CQEvent):
-#    id = str(ev.message).strip()
-#    user = ev['user_id']
-#    if int(user) not in verifies:
-#        await bot.send(ev,'你谁啊你，不是管理员没资格审核色图哦~')
-#        return
-#    if not id:
-#        await bot.send(ev, "请在后面加上要通过的涩图序号f~")
-#        return
-#    try:
-#        test_conn()
-#        sql="update LocalSetu set verify=0 where id = ?"
-#        cursor.execute(sql,(id,))
-#        conn.commit()
-#        await bot.send(ev, f'色图{id}审核通过')
-#    except Exception as e:
-#        await bot.send(ev, "出了点小问题，但一定不是我的问题~")
+@sv.on_prefix('快速审核')
+async def quick_verify(bot, ev:CQEvent):
+    id = str(ev.message).strip()
+    user_id = int(ev["user_id"])
+    if user_id not in verify_group:
+        await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
+        return
+    if not id:
+        await bot.send(ev, "请在后面加上要通过的涩图序号f~")
+        return
+    try:
+        verifyDao().update_verify_stats(id,0)
+        await bot.send(ev, f'色图{id}审核通过')
+    except:
+        traceback.print_exc()
+        await bot.send(ev, "出了点小问题，但一定不是我的问题~")
 #
 #@sv.on_fullmatch(('上传统计'))
 #async def verify_complete(bot, ev: CQEvent):
