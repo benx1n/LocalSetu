@@ -3,7 +3,6 @@ import os
 import traceback
 from loguru import logger
 from collections import defaultdict, namedtuple
-from turtle import down
 from .utils import download,setu_folder,config
 from .dao import loadImgDao
 from .publicAPI import verify
