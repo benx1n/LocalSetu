@@ -152,7 +152,7 @@ class verifyDao:
 
     def update_verify_info(self,id:int, pixiv_id ,pixiv_tag ,pixiv_tag_t ,r18 ,pixiv_url ):
         """
-        更新审核状态
+        更新审核信息
         id: 色图ID
         pixiv_id: P站作品ID
         pixiv_tag：日文TAG
@@ -168,6 +168,16 @@ class verifyDao:
             return 0
         except:
             return 1
+        
+    def get_verify_info(self,verify):
+        """获取待审核图信息
+        url,user,date,id,man
+        """
+        test_conn()
+        sql="select url,user,date,id,man from LocalSetu where verify = ? ORDER BY random() limit 1"
+        cursor.execute(sql,(verify,))
+        return cursor.fetchone()
+        
 
 class normalDao:
     def __init__(self):

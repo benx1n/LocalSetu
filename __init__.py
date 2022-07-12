@@ -1,4 +1,5 @@
 import os
+from pydoc import isdata
 from tokenize import group
 import hjson
 import re
@@ -24,20 +25,16 @@ from .src.get_image import get_local_image,get_original_image
 from .src.load_image import start_load, quit_load, reset_load_time, load_image, LoadImageProcess
 from .src.delete_image import delete_image
 from .src.normal_function import update_tag,anti_image
+from .src.verify_image import start_verify,quit_verify,reset_verify_time,update_verify_state,VerifyImageProcess
 
 
-verifies=config['verify_group']
+verify_group = config['verify_group']
 setu_folder = R.get('img/setu/').path
 _max = 100
 EXCEED_NOTICE = f'您今天已经冲过{_max}次了，请明早5点后再来！'
 _nlmt = DailyNumberLimiter(_max)
 _flmt = FreqLimiter(5)
 
-#_REQUESTS_KWARGS = {
-#'proxies':{
-#      proxy
-#      }
-#}
 
 SETU_help="""LocalSetu涩图帮助指南：
 - -kkqyxp/kkntxp[keyword]：随机发送色图/男同图，其中keyword为可选参数，支持ID、@上传者、TAG模糊查询
@@ -60,20 +57,6 @@ SETU_help="""LocalSetu涩图帮助指南：
 = =重新自动审核/重新获取TAG[起始ID]：重新审核/获取TAG，适用于首次上传由于SauceNAO接口限制而导致的批量自动审核失败
 """
 
-#class MyThread(threading.Thread):
-#    def __init__(self,func,args,name=''):
-#        threading.Thread.__init__(self)
-#        self.func = func
-#        self.name = name
-#        self.args = args
-#
-#    def run(self):
-#       #print('开始执行',self.name,' 在：',ctime())
-#        self.res = self.func(*self.args)
-#        #print(self.name,'结束于：',ctime())
-#
-#    def getResult(self):
-#        return self.res
 
 sv = Service('LocalSetu', manage_priv=priv.SUPERUSER, enable_on_default=True, help_= SETU_help)
 
@@ -230,79 +213,39 @@ async def Anti_harmony(bot, ev: CQEvent):
         msg = await anti_image(id)
         await bot.send(ev, msg)
     
-#
-#
-#class Verify:
-#    def __init__(self):
-#        self.url=""     #审核的色图url
-#        self.switch=0   #当前是否处于审核状态 0 不处于 1处于
-#        self.id=-1     #审核的色图id
-#        self.sql_state=0 #是否执行过sql
-#        self.flag=0 #执行次数
-#ve=Verify()
-#
-#@sv.on_fullmatch(('审核色图上传','审核色图删除'))
-#async def verify_setu(bot, ev: CQEvent):
-#    if int(ev["user_id"]) not in verifies:
-#        await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
-#        return
-#    if ev['prefix'] == '审核色图上传':
-#        sql="select url,user,date,id,man from LocalSetu where verify=1 ORDER BY id DESC limit 1"
-#    elif ev['prefix'] == '审核色图删除':
-#        sql="select url,user,date,id,man from LocalSetu where verify=2 ORDER BY id DESC limit 1"
-#    ve.sql_state,ve.flag=0,0
-#    try:
-#        while ve.flag < 40:
-#            ve.flag = ve.flag + 1
-#            if not ve.sql_state:
-#                test_conn()
-#                cursor.execute(sql)
-#                conn.commit()
-#                results = cursor.fetchone()
-#                if not results:
-#                    await bot.send(ev, '当前没有要审核图片哦，摸鱼大胜利~')
-#                    return                                 
-#                ve.url=os.path.join(setu_folder,results[0])
-#                user=results[1]
-#                date=results[2]
-#                ve.id=results[3]
-#                man=results[4]
-#                man_text = '色图'
-#                if man:
-#                    man_text = '男图'
-#                await bot.send(ev, '当前审核的图片为'+str(MessageSegment.image(f'file:///{os.path.abspath(ve.url)}'))+f'ID：{ve.id}\n来源为[CQ:at,qq={str(user)}]\n类型为:{man_text}\n上传时间:{date}')
-#                ve.sql_state,ve.switch = 1,1
-#            await asyncio.sleep(0.5)
-#        await bot.send(ev, '20秒过去了，审核结束~')
-#        return
-#    except Exception as e:
-#        await bot.send(ev, 'QAQ~审核的时候出现了问题，但一定不是我的问题~')
-#
-#@sv.on_fullmatch(('保留','删除','退出审核'))
-#async def verify_complete(bot, ev: CQEvent):
-#    if not ve.switch or int(ev["user_id"]) not in verifies:
-#        return
-#    try:
-#        test_conn()
-#        if ev['prefix'] == '保留':
-#            sql="update LocalSetu set verify=0 where id = ?"
-#            cursor.execute(sql,(ve.id,))
-#            conn.commit()
-#            await bot.send(ev, '当前图片审核通过'+str(MessageSegment.image(f'file:///{os.path.abspath(ve.url)}'))+f'id为{ve.id}')
-#        elif ev['prefix'] == '删除':
-#            os.remove(ve.url)
-#            sql="delete from LocalSetu where id = ?"
-#            cursor.execute(sql,(ve.id,))
-#            conn.commit()
-#            await bot.send(ev, 'OvO~不合格的涩图删掉了~')
-#        elif ev['prefix'] == '退出审核':
-#            ve.flag = 40
-#            return 
-#        ve.switch,ve.flag,ve.sql_state= 0,0,0
-#    except:
-#        await bot.send(ev, '出了点小问题，其实我觉得这图片挺涩的~')
-#    return
-#
+@sv.on_fullmatch(('审核色图上传','审核色图删除'))
+async def verify_setu(bot, ev: CQEvent):
+    user_id = int(ev["user_id"])
+    if user_id not in verify_group:
+        await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
+        return
+    if VerifyImageProcess[user_id].state == True:
+        await bot.send(ev, '您已经在审核模式中了哦~')
+        return
+    if ev['prefix'] == '审核色图上传':
+        verifynum = 1
+    elif ev['prefix'] == '审核色图删除':
+        verifynum = 2
+    msg = await start_verify(bot,ev,int(ev["user_id"]),verifynum)
+    await bot.send(ev, msg)
+
+@sv.on_fullmatch(('保留','删除','退出审核'))
+async def verify_complete(bot, ev: CQEvent):
+    user_id = int(ev["user_id"])
+    if not VerifyImageProcess[user_id].state or user_id not in verify_group:
+        return
+    try:
+        if ev['prefix'] == '保留':
+            await update_verify_state(bot,ev,user_id,False)
+        elif ev['prefix'] == '删除':
+            await update_verify_state(bot,ev,user_id,True)
+        elif ev['prefix'] == '退出审核':
+            VerifyImageProcess[user_id] = VerifyImageProcess[user_id]._replace(state = False)
+    except:
+        traceback.print_exc()
+        await bot.send(ev, '出了点小问题，其实我觉得这图片挺涩的~')
+        
+
 #@sv.on_prefix('快速审核')
 #async def quick_verify(bot, ev:CQEvent):
 #    id = str(ev.message).strip()
