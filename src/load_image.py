@@ -6,6 +6,7 @@ from turtle import down
 from .utils import download,setu_folder,config
 from .dao import loadImgDao
 from .publicAPI import verify
+from .normal_function import redownload_from_tencent
 
 verify_group = config['verify_group']
 
@@ -71,33 +72,12 @@ async def load_image(bot,ev,is_man):
                         await send_verify_result(bot,ev,id,pixiv_id,tencent_url,verifynum,is_man)
                     else:
                         await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
-        #await asyncio.gather(*tasks1)
-        #if proxy_on:
-        #    if len(threads2)>sauceNao_limit:
-        #        await bot.send(ev,'您本次上传的数量超过了sauceNAO30秒允许的最大值，部分图可能无法成功获取tag,请联系审核组或等待凌晨4点自动审核哦~')
-        #    for t in threads2:
-        #        t.setDaemon(True)
-        #        t.start()
-        #    for t in threads2:
-        #        t.join()
-        #        id,verifynum,pixiv_id,img_url= t.getResult()
-        #        txt =  await redownload_from_tencent(id)        #校验本地缺失文件
-        #        if not verifynum:
-        #            await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
-        #        else:
-        #            await bot.send(ev, f'id:{id}上传成功，但没完全成功，请等待人工审核哦~[CQ:at,qq={str(user)}]')
-        #            for ves in verifies:
-        #                if_man_txt = '色图'
-        #                if is_man:
-        #                    if_man_txt = '男图'
-        #                await bot.send_private_msg(self_id=ev.self_id, user_id=int(ves), message=f'有新的上传申请,id:{id}\n上传者:{user} 分区:{if_man_txt}'+f'[CQ:image,file={img_url}]')
-        #else:
-        #    await bot.send(ev, f'由于您未开启代理，无法自动获取色图信息')
     except Exception as e:
         traceback.print_exc()
         await bot.send(ev, f'wuwuwu~上传出现了问题~请联系维护者提交错误信息{e}')
         
 async def send_verify_result(bot,ev,id,pixiv_id,tencent_url,verifynum,is_man):
+    txt = await redownload_from_tencent(id)
     if not verifynum:
         await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
     else:

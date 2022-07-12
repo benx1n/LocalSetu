@@ -9,6 +9,7 @@ import traceback
 from .dao import verifyDao
 from .utils import config
 
+pixiv_on = config['pixiv']['on']
 sauceNAO_token = config['sauceNAO']['token']
 sauceNAO_proxy_on = config['sauceNAO']['proxy_on']
 pixiv_proxy_on = config['pixiv']['proxy_on']
@@ -56,8 +57,11 @@ async def get_pixiv_tag_url(pixiv_id,page):
     返回TAG,中文TAG，是否R18，P站大图链接
     """
     try:
-        if pixiv_proxy_on:
-            pixiv_proxy = proxy
+        if pixiv_on:
+            if pixiv_proxy_on:
+                pixiv_proxy = proxy
+            else:
+                pixiv_proxy = None
             async with PixivClient(proxy = pixiv_proxy) as client:
                 aapi = AppPixivAPI(client=client,proxy = pixiv_proxy)
                 if pixiv_refresh_token:
