@@ -56,7 +56,7 @@ async def get_local_image(search_tag, user, search_type=0, is_man= 0):
             return msg,url
         else:
             msg = f'涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n支持ID、来源、TAG模糊查询哦~'
-            return msg,url
+            return msg,url,id
     except:
         traceback.print_exc()
         return 'wuwuwu~出了点问题',None

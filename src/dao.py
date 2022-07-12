@@ -175,6 +175,29 @@ class normalDao:
         
     def get_tecent_url(self,id):
         """检查腾讯url是否存在"""
+        test_conn()
         sql="SELECT url,tencent_url FROM LocalSetu where id = ?"
         cursor.execute(sql,(id,))
         return cursor.fetchone()
+    
+    def update_tag(self,tag,id):
+        """更新TAG"""
+        test_conn()
+        sql="update LocalSetu set tag = ? where id = ?"
+        cursor.execute(sql,(tag,id))
+        conn.commit()
+        
+    def get_anti_url(self,id):
+        """获取反和谐信息"""
+        test_conn()
+        sql="SELECT url,anti_url FROM LocalSetu where id =? ORDER BY random() limit 1"
+        cursor.execute(sql,(id,))
+        conn.commit()
+        return cursor.fetchall()
+    
+    def update_anti_url(self,anti_url,id):
+        """更新反和谐url"""
+        test_conn()
+        sql="update LocalSetu set anti_url = ? where id = ?"#保存反和谐后地址
+        cursor.execute(sql,(anti_url,id))
+        conn.commit()

@@ -23,6 +23,7 @@ from .src.utils import config
 from .src.get_image import get_local_image,get_original_image
 from .src.load_image import start_load, quit_load, reset_load_time, load_image, LoadImageProcess
 from .src.delete_image import delete_image
+from .src.normal_function import update_tag,anti_image
 
 
 verifies=config['verify_group']
@@ -43,8 +44,7 @@ SETU_help="""LocalSetu涩图帮助指南：
 - -上传色/男图[TAG][图片][TAG][图片][TAG][图片]，其中TAG为可选参数，可跟多张图片
 - -上传色/男图[无参数]：进入上传模式，该模式下用户发送的所有图片均视为上传，无操作20秒后自动退出
 - -查看原图[ID]：可用于保存原画画质的色图
-- -删除色图[ID]：删除指定ID色图，非审核组成员仅可删除本人上传的色图，删除他人色图请使用'申请删除色图'
-- -申请删除色图[ID]:提交色图删除申请，自动推送至审核组成员
+- -删除色图[ID]：删除指定ID色图，非审核组成员仅可删除本人上传的色图，他人色图将会推送至审核组
 - -修改TAG[ID][TAG]：修改指定ID的自定义TAG
 - -反和谐[ID]：色图被TX屏蔽时使用该指令，进行一次反和谐，后续发送色图均使用反和谐后文件
 - -PID/pid[ID]:通过pixivID查看P站原图
@@ -106,7 +106,7 @@ async def send_local_setu(bot, ev):
             is_man = 1
         else:
             is_man = 0
-        msg,url = await get_local_image(searchtag,qqid,search_type,is_man)
+        msg,url,id = await get_local_image(searchtag,qqid,search_type,is_man)
         if url:
             await bot.send(ev, f"{str(MessageSegment.image(f'file:///{os.path.abspath(url)}'))}\n{msg}")
         else:
@@ -116,13 +116,15 @@ async def send_local_setu(bot, ev):
         sv.logger.error(f"发送图片{id}失败")
         try:
             await bot.send(ev, 'T T涩图不知道为什么发不出去勒...正在尝试反和谐后发送')
+            msg = await anti_image(id)
+            await bot.send(ev, msg)
         except:
             pass
 
 @sv.on_prefix(('查看原图','看看原图','看看大图','查看大图'))
 async def get_original_setu(bot, ev: CQEvent):
     id = str(ev.message).strip()
-    if not id or id=="" or not id.isdigit():
+    if not id or not id.isdigit():
         await bot.send(ev, "请在后面加上要查看的涩图序号~")
         return
     try:
@@ -135,7 +137,7 @@ async def get_original_setu(bot, ev: CQEvent):
         traceback.print_exc()
         sv.logger.error(f"发送图片{id}失败")
         try:
-            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
+            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...可能是被TXban了')
         except:
             pass
         
@@ -206,57 +208,27 @@ async def del_image(bot, ev: CQEvent):
     msg = await delete_image(id,user,bot,ev)
     await bot.send(ev,msg)
 
-#
-#@sv.on_prefix(('修改TAG','修改tag'))
-#async def modify_tag(bot, ev: CQEvent):
-#    test_conn()
-#    if not str(ev.message).strip() or str(ev.message).strip()=="":
-#        await bot.send(ev, '请在指令后添加ID和TAG哦~以空格区分')
-#        return
-#    try:
-#        id,tag=str(ev.message).split(' ', 1 )
-#        sql="update LocalSetu set tag = ? where id = ?"
-#        cursor.execute(sql,(tag,id))
-#        conn.commit()
-#        await bot.send(ev, f'涩图{id}的TAG已更新为{tag}')
-#    except Exception as e:
-#        await bot.send(ev, '请在指令后添加ID和TAG哦~以空格区分')
-#
-#@sv.on_prefix(('反和谐'))
-#async def Anti_harmony(bot, ev: CQEvent):
-#    test_conn()
-#    if not str(ev.message).strip() or str(ev.message).strip()=="":
-#        await bot.send(ev, '请输入要反和谐的图片')
-#        return
-#    try:
-#        id=str(ev.message)
-#        sql="SELECT url,anti_url FROM LocalSetu where id =? ORDER BY random() limit 1"
-#        cursor.execute(sql,(id,))
-#        conn.commit()
-#        results = cursor.fetchall()
-#        if not results:
-#           await bot.send(ev, '该图片不存在~~~')
-#           return
-#        for row in results:
-#            name=row[0]
-#            url=os.path.join(setu_folder,row[0])
-#            anti_url=row[1]
-#        if anti_url and anti_url!="":
-#            os.remove(os.path.join(setu_folder,anti_url))
-#            await bot.send(ev, f'原反和谐文件已删除\\I I/')
-#        tem_name_url=os.path.join(setu_folder,"Anti_harmony_"+name) #临时文件，因为后面计算MD5需要的是文件而不是图片
-#        img=Image.open(url)
-#        img=image_random_one_pixel(img)
-#        img.save(tem_name_url,'jpeg',quality=75)
-#        new_MD5=image2MD5(tem_name_url)   #格式是xx.image
-#        new_url=os.path.join(setu_folder,new_MD5)
-#        os.rename(tem_name_url,new_url)
-#        await bot.send(ev, str(MessageSegment.image(f'file:///{os.path.abspath(new_url)}')) + '\n反和谐成功~')
-#        sql="update LocalSetu set anti_url = ? where id = ?"#保存反和谐后地址
-#        cursor.execute(sql,(new_MD5,id))
-#        conn.commit()
-#    except Exception as e:
-#        await bot.send(ev, '反和谐失败了呜呜呜~')
+@sv.on_prefix(('修改TAG','修改tag'))
+async def modify_tag(bot, ev: CQEvent):
+    if not str(ev.message).strip():
+        await bot.send(ev, '请在指令后添加ID和TAG哦~以空格区分')
+        return
+    try:
+        id,tag=str(ev.message).split(' ', 1 )
+        await update_tag(tag,id)
+        await bot.send(ev, f'涩图{id}的TAG已更新为{tag}')
+    except Exception as e:
+        await bot.send(ev, '请在指令后添加ID和TAG哦~以空格区分')
+
+@sv.on_prefix(('反和谐'))
+async def Anti_harmony(bot, ev: CQEvent):
+    id = str(ev.message).strip()
+    if not id or not id.isdigit():
+        await bot.send(ev, '请输入要反和谐的图片ID')
+    else:
+        msg = await anti_image(id)
+        await bot.send(ev, msg)
+    
 #
 #
 #class Verify:
