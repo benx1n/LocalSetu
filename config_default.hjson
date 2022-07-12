@@ -1,14 +1,41 @@
 {
-	"proxies": {
-        "on":1,//为0不开启代理
-        "https": "http://127.0.0.1:0000"//代理地址
-      },
-	"token":{
-        "sauceNAO": "",//sauceNAO API
-        "refresh_token": "",//pixiv_auth refresh token
-        "sauceNAO_limit":6//sauceNAO30秒请求上限，默认为6
-    },
-	"user_list":{
-		"verifies":[]//审核人员qq号，逗号分隔
-	}
+  //代理设置
+  "proxies": {
+    //代理类型，http(s)/sock5
+    "proxy_type": "http",
+    //代理地址
+    "proxy": "http://127.0.0.1:7890"
+  },
+  //pixiv相关设置
+  "pixiv": {
+    //是否启用pixiv搜索功能，主要用于自动审核，关闭后默认进入待审核状态
+    "on": true,
+    //是否开启代理
+    "proxy_on": true,
+    //pixiv_auth refresh token,如果为空则会尝试使用下面的用户名+密码访问P站
+    "refresh_token": "",
+    //用户名
+    "username": "",
+    //密码
+    "password": "",
+    //获取原图时发送的反向代理地址
+    "pximgUrl": "https://i.pixiv.re/"
+  },
+  //sauceNAO相关设置
+  "sauceNAO": {
+    //是否开启代理
+    "proxy_on": true,
+    //sauceNAO API
+    "token": "",
+    //sauceNAO每30秒上限
+    "limit": 5
+  },
+  //审核组成员qq号，逗号分隔
+  "verify_group": [
+    1119809439
+  ],
+  //黑名单群组
+  "ban_group": [],
+  //黑名单用户
+  "ban_user": []
 }

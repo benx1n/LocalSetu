@@ -40,7 +40,7 @@ _flmt = FreqLimiter(5)
 SETU_help="""LocalSetu涩图帮助指南：
 - -kkqyxp/kkntxp[keyword]：随机发送色图/男同图，其中keyword为可选参数，支持ID、@上传者、TAG模糊查询
 - -上传色/男图[TAG][图片][TAG][图片][TAG][图片]，其中TAG为可选参数，可跟多张图片
-- -上传色/男图[无参数]：进入上传模式，该模式下用户发送的所有图片均视为上传，无操作20秒后自动退出
+- -上传色/男图[无参数]：进入上传模式，该模式下用户发送的所有图片均视为上传，发送[退出上传]或无操作20秒后自动退出
 - -查看原图[ID]：可用于保存原画画质的色图
 - -删除色图[ID]：删除指定ID色图，非审核组成员仅可删除本人上传的色图，他人色图将会推送至审核组
 - -修改TAG[ID][TAG]：修改指定ID的自定义TAG
@@ -436,19 +436,16 @@ logger.add(
     encoding="utf-8",
 )
 
-#
-#@sv.scheduled_job('cron',hour='4')
-#async def re_download_verify():
-#    bot = hoshino.get_bot()
-#    superid = hoshino.config.SUPERUSERS[0]
-#    test_conn
-#    sql="SELECT id FROM LocalSetu where tencent_url is not NULL"        #下载缺失文件
-#    cursor.execute(sql)
-#    results = cursor.fetchall()
-#    for row in results:
-#        txt = await redownload_from_tencent(row[0])
-#    msg = '自动下载本地缺失文件完成'
-#    await bot.send_private_msg(user_id=superid, message=msg)
-#    msg = await auto_verify(1)                                          #重新自动审核
-#    await bot.send_private_msg(user_id=superid, message=msg)
-#    return
+
+@sv.scheduled_job('cron',hour='4')
+async def re_download_verify():
+    bot = hoshino.get_bot()
+    superid = hoshino.config.SUPERUSERS[0]
+    results = normalDao().get_tecent_url_list()
+    for row in results:
+        txt = await redownload_from_tencent(row[0])
+    msg = '自动下载本地缺失文件完成，开始自动审核并爬取缺失TAG'
+    await bot.send_private_msg(user_id=superid, message=msg)
+    msg = await auto_verify(1)                                          #重新自动审核
+    await bot.send_private_msg(user_id=superid, message=msg)
+    return

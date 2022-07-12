@@ -196,6 +196,13 @@ class normalDao:
         sql="SELECT * FROM LocalSetu where id = ?"
         cursor.execute(sql,(id,))
         return cursor.fetchone()
+    
+    def get_tecent_url_list(self):
+        """获取存在腾讯URL的全部图片"""
+        test_conn()
+        sql="SELECT id FROM LocalSetu where tencent_url is not NULL"
+        cursor.execute(sql)
+        return cursor.fetchall()
         
     def get_tecent_url(self,id):
         """检查腾讯url是否存在"""
