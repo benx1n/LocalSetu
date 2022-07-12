@@ -1,13 +1,13 @@
 from PicImageSearch import SauceNAO,Network
 from PicImageSearch.model import SauceNAOResponse
-from pixivpy3 import ByPassSniApi
-
 from pixivpy_async import *
+from loguru import logger
 import re
 import traceback
+import asyncio
 
 from .dao import verifyDao
-from .utils import config
+from .utils import config,setu_folder
 
 pixiv_on = config['pixiv']['on']
 sauceNAO_token = config['sauceNAO']['token']
@@ -46,7 +46,7 @@ async def get_pixiv_id(url):
         else:
             return 0,''
     except:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return 0,''
     
 #获取图片pixiv_tag和原图urla
@@ -74,10 +74,7 @@ async def get_pixiv_tag_url(pixiv_id,page):
                     return '','',0,''
                 page_count = json_result.illust.page_count
                 illust = json_result.illust.tags
-                r18 = 0
-                pixiv_tag = ''
-                pixiv_tag_t = ''
-                pixiv_img_url =''
+                pixiv_tag,pixiv_tag_t,pixiv_url,r18='','','',0
                 if illust[0]['name'] == 'R-18':
                     r18 = 1
                 for i in illust:
@@ -86,14 +83,14 @@ async def get_pixiv_tag_url(pixiv_id,page):
                 pixiv_tag = pixiv_tag.strip()
                 pixiv_tag_t = pixiv_tag_t.strip()
                 if page_count == 1:
-                    pixiv_img_url=json_result.illust.meta_single_page['original_image_url']
+                    pixiv_url=json_result.illust.meta_single_page['original_image_url']
                 else:
-                    pixiv_img_url=json_result.illust.meta_pages[int(page)]['image_urls']['original']
-                return pixiv_tag,pixiv_tag_t,r18,pixiv_img_url
+                    pixiv_url=json_result.illust.meta_pages[int(page)]['image_urls']['original']
+                return pixiv_tag,pixiv_tag_t,r18,pixiv_url
         else:
             return '','',0,''
     except:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return '','',0,''
 
 
@@ -117,5 +114,41 @@ async def verify(id,url):
                 verify = verifyDao().update_verify_info(id, pixiv_id ,pixiv_tag ,pixiv_tag_t ,r18 ,pixiv_url)
         return verify,pixiv_id
     except:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return 1,None
+    
+    
+#从指定ID开始自动审核（获取TAG）
+async def auto_verify(id):
+    try:
+        results = verifyDao().get_verify_list(id)
+        id,success,failed = 0,0,0
+        for row in results:
+            id = row[0] #参数初始化
+            url= setu_folder+'/'+row[1]
+            pixiv_tag,pixiv_tag_t,pixiv_url,r18='','','',0
+            print(f'id='+ str(id))
+            pixiv_id,index_name = await get_pixiv_id(url)
+            if not pixiv_id:
+                logger.info(f'id:{id}未通过自动审核,可能刚上传至P站或无法访问saucenao')
+                failed += 1
+                #time.sleep(1)
+            else:
+                page = re.search(r'_p(\d+)',index_name,re.X)
+                if not page:
+                    pagenum = 0
+                else:
+                    pagenum = page.group(1)
+                pixiv_tag,pixiv_tag_t,r18,pixiv_url = await get_pixiv_tag_url(pixiv_id,pagenum)
+                if not pixiv_tag:
+                    logger.info(f'id:{id}未通过自动审核,可能原画已被删除或无法访问P站API')
+                    failed += 1
+                    #time.sleep(1)
+                else:
+                    verifyDao().update_verify_info(id,pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_url)
+                    logger.info(f'id:{id}通过自动审核,已自动为您获取原图PixivID:{pixiv_id}')
+                    success += 1
+            await asyncio.sleep(5)
+        return f'重新自动审核完成\n成功'+str(success)+f'张\n失败'+str(failed)+f'张'
+    except:
+        logger.error(traceback.format_exc())

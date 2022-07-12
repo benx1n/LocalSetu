@@ -1,7 +1,7 @@
 import os
 import traceback
 import re
-
+from loguru import logger
 
 from .utils import config,download,setu_folder
 from .dao import getImgDao
@@ -58,7 +58,7 @@ async def get_local_image(search_tag, user, search_type=0, is_man= 0):
             msg = f'涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n支持ID、来源、TAG模糊查询哦~'
             return msg,url,id
     except:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return 'wuwuwu~出了点问题',None,None
     
 async def get_original_image(id,bot,ev):
@@ -92,5 +92,5 @@ async def get_original_image(id,bot,ev):
         msg = f'原图链接：https://pixiv.net/i/{pixiv_id}' + f'\n反代链接:{pixiv_proxy_url}'
         return msg,url,pixiv_id,pixiv_proxy_url
     except:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return 'wuwuwu~出了点问题',None,None,None

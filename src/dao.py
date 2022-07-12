@@ -177,11 +177,25 @@ class verifyDao:
         sql="select url,user,date,id,man from LocalSetu where verify = ? ORDER BY random() limit 1"
         cursor.execute(sql,(verify,))
         return cursor.fetchone()
+    
+    def get_verify_list(self,id):
+        """从指定ID开始获取待审核图信息"""
+        test_conn()
+        sql="SELECT id,url FROM LocalSetu where (pixiv_id = 0 or verify = 1) and id >= ?"
+        cursor.execute(sql,(id,))
+        return cursor.fetchall()
         
 
 class normalDao:
     def __init__(self):
         test_conn()
+        
+    def get_all_info(self,id):
+        """获取全部信息"""
+        test_conn()
+        sql="SELECT * FROM LocalSetu where id = ?"
+        cursor.execute(sql,(id,))
+        return cursor.fetchone()
         
     def get_tecent_url(self,id):
         """检查腾讯url是否存在"""

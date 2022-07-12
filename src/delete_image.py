@@ -1,5 +1,6 @@
 import os
 import traceback
+from loguru import logger
 from .dao import deleteDao
 from .utils import config,setu_folder
 from hoshino.typing import MessageSegment
@@ -29,5 +30,5 @@ async def delete_image(id,user,bot,ev):
                     os.remove(os.path.join(setu_folder, url))
                     return f"OvO~涩图{id}删掉了~"
     except:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return f"QAQ~删涩图{id}的时候出现了问题，但一定不是我的问题~"        

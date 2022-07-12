@@ -7,11 +7,9 @@ from nonebot.typing import State_T
 import requests
 import time
 from PIL import Image
-import hashlib
-import threading
-import asyncio
 import traceback
 from pathlib import Path
+from loguru import logger
 
 
 from nonebot.exceptions import CQHttpError
@@ -20,16 +18,16 @@ from hoshino import R, Service, priv, get_bot
 from hoshino.util import FreqLimiter, DailyNumberLimiter
 from hoshino.typing import CQEvent, MessageSegment
 from nonebot import NoticeSession, on_command
-from .src.utils import config,download,image_random_one_pixel
+from .src.utils import config
 from .src.get_image import get_local_image,get_original_image
 from .src.load_image import start_load, quit_load, reset_load_time, load_image, LoadImageProcess
 from .src.delete_image import delete_image
-from .src.normal_function import update_tag,anti_image,anti_image_temporary
+from .src.normal_function import update_tag,anti_image,anti_image_temporary,redownload_from_tencent
 from .src.verify_image import start_verify,quit_verify,reset_verify_time,update_verify_state,VerifyImageProcess
-from .src.publicAPI import get_pixiv_id,get_pixiv_tag_url
+from .src.publicAPI import get_pixiv_id,get_pixiv_tag_url,auto_verify
 from .src.dao import verifyDao,normalDao
 
-
+dir_path = Path(__file__).parent
 verify_group = config['verify_group']
 pximgUrl = config['pixiv']['pximgUrl']
 setu_folder = R.get('img/setu/').path
@@ -98,14 +96,14 @@ async def send_local_setu(bot, ev):
         else:
             await bot.send(ev, msg)
     except CQHttpError:
-        traceback.print_exc()
+        logger.warning(traceback.format_exc())
         sv.logger.error(f"发送图片{id}失败")
         try:
             await bot.send(ev, 'T T涩图不知道为什么发不出去勒...正在尝试反和谐后发送')
             anti_msg = await anti_image(id)
             await bot.send(ev, anti_msg)
         except:
-            traceback.print_exc()
+            logger.warning(traceback.format_exc())
             pass
 
 @sv.on_prefix(('查看原图','看看原图','看看大图','查看大图'))
@@ -121,14 +119,14 @@ async def get_original_setu(bot, ev: CQEvent):
         else:
             await bot.send(ev, msg)
     except CQHttpError:
-        traceback.print_exc()
-        sv.logger.error(f"发送图片{id}失败")
+        logger.error(traceback.format_exc())
+        sv.logger.warning(f"发送图片{id}失败")
         try:
             await bot.send(ev, 'T T涩图不知道为什么发不出去勒...正在尝试反和谐后发送')
             anti_msg = await anti_image_temporary(pixiv_id,pixiv_proxy_url)
             await bot.send(ev, anti_msg)
         except:
-            traceback.print_exc()
+            logger.warning(traceback.format_exc())
             pass
         
 @sv.on_prefix(('上传色图','上传男图'))
@@ -154,49 +152,58 @@ async def start_load_image(bot, ev:CQEvent):
             return
         await load_image(bot,ev,is_man)     #不进入上传模式，直接上传
     except:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         await quit_load(user_id)
         await bot.send(ev, 'wuwuwu~上传失败了~')
         
 #监听:消息类型的图片
 @sv.on_message()
 async def is_load_image(bot, ev:CQEvent):
-    user_id=ev['user_id']
-    if not LoadImageProcess[user_id].state:       #是否处于上传模式
-        return
-    if not LoadImageProcess[user_id].is_private :     #是否群聊
-        if 'group_id' in ev.keys() and LoadImageProcess[user_id].group_id != ev['group_id']:     #开启色图模式的和发图的是不是同一个群
+    try:
+        user_id=ev['user_id']
+        if not LoadImageProcess[user_id].state:       #是否处于上传模式
             return
-    else:                                           #私聊
-        if ev['message_type'] != 'private':
+        if not LoadImageProcess[user_id].is_private :     #是否群聊
+            if 'group_id' in ev.keys() and LoadImageProcess[user_id].group_id != ev['group_id']:     #开启色图模式的和发图的是不是同一个群
+                return
+        else:                                           #私聊
+            if ev['message_type'] != 'private':
+                return
+        if not (str(ev.message).find("[CQ:image")+1):  #判断收到的信息是否为图片，不是就退出
             return
-    if not (str(ev.message).find("[CQ:image")+1):  #判断收到的信息是否为图片，不是就退出
-        return
-    await reset_load_time(user_id)
-    await load_image(bot,ev,LoadImageProcess[user_id].is_man)
+        await reset_load_time(user_id)
+        await load_image(bot,ev,LoadImageProcess[user_id].is_man)
+    except:
+        logger.error(traceback.format_exc())
     
 #监听:文件类型的图片  
 @sv.on_notice()
 async def is_load_file(session: NoticeSession):
-    ev = session.event
-    user_id=ev['user_id']
-    if not LoadImageProcess[user_id].state:       #是否处于上传模式
-        return
-    if not ((str(ev).find("'file': {")+1)):  #判断收到的信息是否为文件，不是就退出
-        return
-    bot = get_bot()
-    await reset_load_time(user_id)
-    await load_image(bot,ev,LoadImageProcess[user_id].is_man)
+    try:
+        ev = session.event
+        user_id=ev['user_id']
+        if not LoadImageProcess[user_id].state:       #是否处于上传模式
+            return
+        if not ((str(ev).find("'file': {")+1)):  #判断收到的信息是否为文件，不是就退出
+            return
+        bot = get_bot()
+        await reset_load_time(user_id)
+        await load_image(bot,ev,LoadImageProcess[user_id].is_man)
+    except:
+        logger.error(traceback.format_exc())
   
 @sv.on_prefix(('删除涩图', '删除色图','删除男图'))
 async def del_image(bot, ev: CQEvent):
-    id = str(ev.message).strip()
-    user = ev['user_id']
-    if not id or not id.isdigit():
-        await bot.send(ev, "请在后面加上要删除的涩图序号~")
-        return
-    msg = await delete_image(id,user,bot,ev)
-    await bot.send(ev,msg)
+    try:
+        id = str(ev.message).strip()
+        user = ev['user_id']
+        if not id or not id.isdigit():
+            await bot.send(ev, "请在后面加上要删除的涩图序号~")
+            return
+        msg = await delete_image(id,user,bot,ev)
+        await bot.send(ev,msg)
+    except:
+        logger.error(traceback.format_exc())
 
 @sv.on_prefix(('修改TAG','修改tag'))
 async def modify_tag(bot, ev: CQEvent):
@@ -207,40 +214,49 @@ async def modify_tag(bot, ev: CQEvent):
         id,tag=str(ev.message).split(' ', 1 )
         await update_tag(tag,id)
         await bot.send(ev, f'涩图{id}的TAG已更新为{tag}')
-    except Exception as e:
+    except:
+        logger.error(traceback.format_exc())
         await bot.send(ev, '请在指令后添加ID和TAG哦~以空格区分')
 
 @sv.on_prefix(('反和谐'))
 async def Anti_harmony(bot, ev: CQEvent):
-    id = str(ev.message).strip()
-    if not id or not id.isdigit():
-        await bot.send(ev, '请输入要反和谐的图片ID')
-    else:
-        msg = await anti_image(id)
-        await bot.send(ev, msg)
+    try:
+        id = str(ev.message).strip()
+        if not id or not id.isdigit():
+            await bot.send(ev, '请输入要反和谐的图片ID')
+        else:
+            msg = await anti_image(id)
+            await bot.send(ev, msg)
+    except:
+        logger.error(traceback.format_exc())
     
 @sv.on_fullmatch(('审核色图上传','审核色图删除'))
 async def verify_setu(bot, ev: CQEvent):
-    user_id = int(ev["user_id"])
-    if user_id not in verify_group:
-        await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
-        return
-    if VerifyImageProcess[user_id].state == True:
-        await bot.send(ev, '您已经在审核模式中了哦~')
-        return
-    if ev['prefix'] == '审核色图上传':
-        verifynum = 1
-    elif ev['prefix'] == '审核色图删除':
-        verifynum = 2
-    msg = await start_verify(bot,ev,int(ev["user_id"]),verifynum)
-    await bot.send(ev, msg)
-
-@sv.on_fullmatch(('保留','删除','退出审核'))
-async def verify_complete(bot, ev: CQEvent):
-    user_id = int(ev["user_id"])
-    if not VerifyImageProcess[user_id].state or user_id not in verify_group:
-        return
     try:
+        user_id = int(ev["user_id"])
+        if user_id not in verify_group:
+            await bot.send(ev, '你谁啊你，不是管理员没资格审核色图哦~')
+            return
+        if VerifyImageProcess[user_id].state == True:
+            await bot.send(ev, '您已经在审核模式中了哦~')
+            return
+        if ev['prefix'] == '审核色图上传':
+            verifynum = 1
+        elif ev['prefix'] == '审核色图删除':
+            verifynum = 2
+        msg = await start_verify(bot,ev,int(ev["user_id"]),verifynum)
+        await bot.send(ev, msg)
+    except:
+        logger.error(traceback.format_exc())
+
+@sv.on_fullmatch(('保留','删除','退出审核','退出上传'))
+async def verify_complete(bot, ev: CQEvent):
+    try:
+        user_id = int(ev["user_id"])
+        if ev['prefix'] == '退出上传':
+            LoadImageProcess[user_id] = LoadImageProcess[user_id]._replace(state = False)
+        if not VerifyImageProcess[user_id].state or user_id not in verify_group:
+            return
         if ev['prefix'] == '保留':
             await update_verify_state(bot,ev,user_id,False)
         elif ev['prefix'] == '删除':
@@ -248,7 +264,7 @@ async def verify_complete(bot, ev: CQEvent):
         elif ev['prefix'] == '退出审核':
             VerifyImageProcess[user_id] = VerifyImageProcess[user_id]._replace(state = False)
     except:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         await bot.send(ev, '出了点小问题，其实我觉得这图片挺涩的~')
         
 
@@ -266,20 +282,23 @@ async def quick_verify(bot, ev:CQEvent):
         verifyDao().update_verify_stats(id,0)
         await bot.send(ev, f'色图{id}审核通过')
     except:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         await bot.send(ev, "出了点小问题，但一定不是我的问题~")
 
 @sv.on_fullmatch(('上传统计'))
 async def verify_complete(bot, ev: CQEvent):
-    sumnumber = normalDao().get_image_count()[0]
-    text = f"当前图库总数{sumnumber}："
-    results = normalDao().get_image_upload_rank()
-    
-    for i,raw in enumerate(results):
-        user = raw[0]
-        number = raw[1]
-        text = text +f"\n第{str(i+1)}名："+ f'[CQ:at,qq={str(user)}] '+f'上传{str(number)}张'
-    await bot.send(ev,text)
+    try:
+        sumnumber = normalDao().get_image_count()[0]
+        text = f"当前图库总数{sumnumber}："
+        results = normalDao().get_image_upload_rank()
+
+        for i,raw in enumerate(results):
+            user = raw[0]
+            number = raw[1]
+            text = text +f"\n第{str(i+1)}名："+ f'[CQ:at,qq={str(user)}] '+f'上传{str(number)}张'
+        await bot.send(ev,text)
+    except:
+        logger.error(traceback.format_exc())
 
 #@sv.on_prefix(('sql'))
 #async def choose_setu(bot, ev):
@@ -353,108 +372,70 @@ async def from_pid_get_image(bot, ev: CQEvent):
         msg = await anti_image_temporary(id,pixiv_proxy_url)
         await bot.send(ev, msg)
     except CQHttpError:
+        logger.warning(traceback.format_exc())
         sv.logger.error(f"发送图片{id}失败")
         try:
             await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
         except:
+            logger.warning(traceback.format_exc())
             pass
 
-#@sv.on_prefix('重新下载')
-#async def redownload_img_from_tencent(bot, ev):
-#    id = str(ev.message).strip()
-#    user = ev['user_id']
-#    if not id or id=="" or not id.isdigit():
-#        await bot.send(ev, "请在后面加上要重新下载的色图")
-#        return
-#    txt = await redownload_from_tencent(id)
-#    await bot.send(ev,str(txt))
-#    return
-#
-#@sv.on_prefix(('重新自动审核', '重新获取TAG'))
-#async def auto_verify(bot, ev: CQEvent):
-#    id = str(ev.message).strip()
-#    user = ev['user_id']
-#    if not id or id=="" or not id.isdigit():
-#        await bot.send(ev, "请在后面加上起始ID")
-#        return
-#    if int(user) not in verifies:
-#        await bot.send(ev,'你谁啊你，不是管理员没资格审核色图哦~')
-#        return
-#    else:
-#        txt = await auto_verify(id)
-#        await bot.send(ev,txt)
-#
-#async def redownload_from_tencent(id):
-#    test_conn
-#    sql="SELECT url,tencent_url FROM LocalSetu where id = ?"
-#    cursor.execute(sql,(id,))
-#    result = cursor.fetchone()
-#    if not result:
-#        txt = f'id{id}不存在~~~'
-#        return txt
-#    if not result[1]:
-#        txt = f'id{id}的腾讯服务器url不存在~~~'
-#        return txt
-#    local_url = os.path.join(setu_folder,result[0])
-#    if not os.path.exists(os.path.abspath(local_url)):
-#        try:
-#            await download(result[1], local_url)
-#            txt = f'id{id}下载成功'
-#        except:
-#            txt = f'id{id}下载失败，可能是腾讯服务器url过期了~'
-#    else:
-#        txt = f'id{id}本地文件已存在哦~'
-#    return txt
-#
-#async def auto_verify(id):
-#    test_conn
-#    sql="SELECT id,url FROM LocalSetu where (pixiv_id = 0 or verify = 1) and id >= ?"
-#    #sql="SELECT id,url FROM bot.localsetu where id = 759 or id =760 or id=761 ORDER BY id limit 1"
-#    cursor.execute(sql,(id,))
-#    results = cursor.fetchall()
-#    id = 0
-#    success = 0
-#    failed = 0
-#    for row in results:
-#        id = row[0] #参数初始化
-#        url= setu_folder+'/'+row[1]
-#        #url= 'https://pixiv.cat/92252996.jpg'
-#        pixiv_tag=''
-#        pixiv_tag_t=''
-#        pixiv_img_url=''
-#        r18=0
-#        print(f'id='+ str(id))
-#        pixiv_id,index_name=get_pixiv_id(url)
-#        if not pixiv_id:
-#            #print('获取失败了~')
-#            #await bot.send(ev, f'id:{id}自动审核失败，可能刚上传至P站，请进行人工审核哦~[CQ:at,qq={str(user)}]')
-#            sv.logger.info(f'id:{id}未通过自动审核,可能刚上传至P站或无法访问saucenao')
-#            failed += 1
-#            #time.sleep(1)
-#        else:
-#            page = re.search(r'_p(\d+)',index_name,re.X)
-#            if not page:
-#                pagenum = 0
-#            else:
-#                pagenum = page.group(1)
-#            pixiv_tag,pixiv_tag_t,r18,pixiv_img_url=get_pixiv_tag_url(pixiv_id,pagenum)
-#            if not pixiv_tag:
-#                #print('无法获取原画，该原画可能已被删除')
-#                #await bot.send(ev, f'id:{id}自动审核失败，可能原画已被删除，请进行人工审核哦~[CQ:at,qq={str(user)}]')
-#                sv.logger.info(f'id:{id}未通过自动审核,可能原画已被删除或无法访问P站API')
-#                failed += 1
-#                #time.sleep(1)
-#            else:
-#                pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
-#                sql = "update LocalSetu set pixiv_id = ?,pixiv_tag = ?,pixiv_tag_t = ?,r18 = ?,pixiv_url = ?,verify = ? where id = ?"
-#                cursor.execute(sql,(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url,0,id))
-#                conn.commit()
-#                #print(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_img_url)
-#                #await bot.send(ev, f'id:{id}上传成功，自动审核通过\n已自动为您获取原图PixivID:{pixiv_id}\n'+f"发送'查看原图+ID'即可")
-#                sv.logger.info(f'id:{id}通过自动审核,已自动为您获取原图PixivID:{pixiv_id}')
-#                success += 1
-#        await asyncio.sleep(5)
-#    return f'重新自动审核完成\n成功'+str(success)+f'张\n失败'+str(failed)+f'张'
+@sv.on_prefix('重新下载')
+async def redownload_img_from_tencent(bot, ev):
+    try:
+        id = str(ev.message).strip()
+        user = ev['user_id']
+        if not id or not id.isdigit():
+            await bot.send(ev, "请在后面加上要重新下载的色图")
+            return
+        msg = await redownload_from_tencent(id)
+        await bot.send(ev,str(msg))
+        return
+    except:
+        logger.error(traceback.format_exc())
+
+@sv.on_prefix(('重新自动审核', '重新获取TAG'))
+async def start_auto_verify(bot, ev: CQEvent):
+    try:
+        id = str(ev.message).strip()
+        user = ev['user_id']
+        if not id or not id.isdigit():
+            await bot.send(ev, "请在后面加上起始ID")
+            return
+        if int(user) not in verify_group:
+            await bot.send(ev,'你谁啊你，不是管理员没资格审核色图哦~')
+            return
+        else:
+            txt = await auto_verify(id)
+            await bot.send(ev,txt)
+    except:
+        logger.error(traceback.format_exc())
+
+logger.add(
+    str(dir_path/"logs/error.log"),
+    rotation="00:00",
+    retention="1 week",
+    diagnose=False,
+    level="ERROR",
+    encoding="utf-8",
+)
+logger.add(
+    str(dir_path/"logs/info.log"),
+    rotation="00:00",
+    retention="1 week",
+    diagnose=False,
+    level="INFO",
+    encoding="utf-8",
+)
+logger.add(
+    str(dir_path/"logs/warning.log"),
+    rotation="00:00",
+    retention="1 week",
+    diagnose=False,
+    level="WARNING",
+    encoding="utf-8",
+)
+
 #
 #@sv.scheduled_job('cron',hour='4')
 #async def re_download_verify():

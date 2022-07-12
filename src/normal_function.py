@@ -1,6 +1,7 @@
 import os
 import traceback
 from PIL import Image
+from loguru import logger
 from .dao import normalDao
 from hoshino.typing import MessageSegment
 from .utils import setu_folder,download,image_random_one_pixel,image2MD5
@@ -23,7 +24,7 @@ async def redownload_from_tencent(id):
             msg = f'id{id}本地文件已存在哦~'
         return msg
     except:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
 
 async def update_tag(tag,id):
     normalDao().update_tag(tag,id)
@@ -50,15 +51,18 @@ async def anti_image(id):
         normalDao().update_anti_url(new_MD5,id)
         return str(MessageSegment.image(f'file:///{os.path.abspath(new_url)}')) + '\n反和谐成功~'
     except:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return '反和谐失败了呜呜呜~'
     
 async def anti_image_temporary(pixiv_id,pixiv_proxy_url):
     """临时反和谐"""
-    Anti_harmony_url=setu_folder+"/Anti_harmony_777"
-    await download(pixiv_proxy_url, Anti_harmony_url)   
-    img = Image.open(Anti_harmony_url)
-    img = await image_random_one_pixel(img)
-    Anti_harmony_url = Anti_harmony_url + '8'
-    img.save(Anti_harmony_url,'PNG',quality=75)
-    return str(MessageSegment.image(f'file:///{os.path.abspath(Anti_harmony_url)}'))+f'\n本图片进过反和谐，若有原图需要请从反代链接下载'+ f'\n原图链接：https://pixiv.net/i/{pixiv_id}' + f'\n反代链接:{pixiv_proxy_url}'
+    try:
+        Anti_harmony_url=setu_folder+"/Anti_harmony_777"
+        await download(pixiv_proxy_url, Anti_harmony_url)   
+        img = Image.open(Anti_harmony_url)
+        img = await image_random_one_pixel(img)
+        Anti_harmony_url = Anti_harmony_url + '8'
+        img.save(Anti_harmony_url,'PNG',quality=75)
+        return str(MessageSegment.image(f'file:///{os.path.abspath(Anti_harmony_url)}'))+f'\n本图片进过反和谐，若有原图需要请从反代链接下载'+ f'\n原图链接：https://pixiv.net/i/{pixiv_id}' + f'\n反代链接:{pixiv_proxy_url}'
+    except:
+        logger.error(traceback.format_exc())
