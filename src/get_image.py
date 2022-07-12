@@ -31,7 +31,7 @@ async def get_local_image(search_tag, user, search_type=0, is_man= 0):
             result = None
         
         if not result:
-           return '该群友xp不存在~~~',None
+           return '该群友xp不存在~~~',None,None
        
         id = result[0]
         url=os.path.join(setu_folder,result[1])
@@ -45,7 +45,7 @@ async def get_local_image(search_tag, user, search_type=0, is_man= 0):
         if result[2]:
             url = anti_url
         if verify:
-            return "该图正在等待审核，暂不支持查看~",None
+            return "该图正在等待审核，暂不支持查看~",None,None
         if not tag:
             tag = f'当前TAG为空，您可以发送修改TAG{id}进行编辑~'
         else:
@@ -53,13 +53,13 @@ async def get_local_image(search_tag, user, search_type=0, is_man= 0):
         if pixiv_id :
             pixiv_url = "https://pixiv.net/i/"+ str(pixiv_id)
             msg = f'涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n{pixiv_url}' +f'\n支持ID、来源、TAG模糊查询哦~'
-            return msg,url
+            return msg,url,id
         else:
             msg = f'涩图ID:{id} 来源[CQ:at,qq={str(user)}]'+ f'\n{str(tag)}'+f'\nPixivTAG:{pixiv_tag}' +f'\n支持ID、来源、TAG模糊查询哦~'
             return msg,url,id
     except:
         traceback.print_exc()
-        return 'wuwuwu~出了点问题',None
+        return 'wuwuwu~出了点问题',None,None
     
 async def get_original_image(id,bot,ev):
     try:

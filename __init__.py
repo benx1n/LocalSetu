@@ -116,9 +116,10 @@ async def send_local_setu(bot, ev):
         sv.logger.error(f"发送图片{id}失败")
         try:
             await bot.send(ev, 'T T涩图不知道为什么发不出去勒...正在尝试反和谐后发送')
-            msg = await anti_image(id)
-            await bot.send(ev, msg)
+            anti_msg = await anti_image(id)
+            await bot.send(ev, anti_msg)
         except:
+            traceback.print_exc()
             pass
 
 @sv.on_prefix(('查看原图','看看原图','看看大图','查看大图'))
