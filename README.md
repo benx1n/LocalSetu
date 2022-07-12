@@ -23,33 +23,18 @@
 1. 在HoshinoBot的插件目录modules下clone本项目 `git clone https://github.com/benx1n/LocalSetu.git`
 2. 在项目文件夹下执行`pip install -r requirements.txt`安装依赖
 3. 获取[sauceNAO apikey](https://saucenao.com/)及[Pixiv refresh_token](https://gist.github.com/upbit/6edda27cb1644e94183291109b8a5fde)
-*   windows环境（其他环境您也可以在windows上得到refresh token后给服务器使用）
-    >在项目文件夹下执行
-    >```
-    >python pixiv_auth.py login
-    >```
-    >提示chromedriver版本不一致请从[官网](http://chromedriver.storage.googleapis.com/index.html)下载对应版本驱动<br>
-    >可能会出现Cloudflare验证，手动验证或切换其他代理即可通过<br>
-    >成功后会在窗口内自动显示`refresh_token`<br>
-    >注：如果在墙内访问，请**手动设置** `REQUESTS_KWARGS.proxies` 的代理，不然获取code后无法正确提交请求到Pixiv(现象是 `[INFO] Get code: xxxxx` 后一直卡住，未requests配置代理即可)
-
+    -   windows环境（其他环境您也可以在windows上得到refresh token后给服务器使用）
+        >在项目文件夹下执行
+        >```
+        >python pixiv_auth.py login
+        >```
+        >提示chromedriver版本不一致请从[官网](http://chromedriver.storage.  googleapis.com/index.html)下载对应版本驱动<br>
+        >可能会出现Cloudflare验证，手动验证或切换其他代理即可通过<br>
+        >成功后会在窗口内自动显示`refresh_token`<br>
+        >注：如果在墙内访问，请**手动设置** `REQUESTS_KWARGS.proxies` 的代理，不然  获取code后无法正确提交请求到Pixiv(现象是 `[INFO] Get code: xxxxx` 后一直卡    住，未requests配置代理即可)
+    -  如果您无法获取refresh_token，也可在`config.hjson`中配置pixiv用户名密码用于   登录（非日本节点可能会触发CF盾）
 
 4. 将配置文件 `config_default.hjson` 拷贝一份后重命名为 `config.hjson` , 修改配置文件中的设置<br>
-*   若您不准备使用代理，且能正常访问sauceNAO，请在setu.py中作下列修改（若您不能访问sauceNAO，请将配置文件中的on设置为0）(无代理模式目前仍在重构，推荐使用代理)
-    >删除get_pixiv_id函数中的`,**_REQUESTS_KWARGS`<br>
-    >修改get_pixiv_tag_url函数中如下部分
-    >```        
-    >api = AppPixivAPI()
-    >api.set_accept_language('zh-cn')
-    >api.auth(refresh_token=refresh_token)
-    >```
-    >更变为
-    >```        
-    >api = ByPassSniApi()
-    >api.require_appapi_hosts(hostname="public-api.secure.pixiv.net")
-    >api.set_accept_language('zh-cn')
-    >api.auth(refresh_token=refresh_token)
-    >```
 5. 将数据库文件`demo.db`拷贝一份后重命名为`LocalSetu.db`
 5. 在 `config/__bot__.py`的模块列表里加入 `LocalSetu`
 6. 重启hoshinoBot
@@ -100,7 +85,7 @@
 |  指令   | 必要参数  |可选参数|说明|
 |  :----  | :----  | :---- |:----|
 | **kkqyxp<br>kkntxp**|无| ID,@上传者,TAG |随机发送色图/男同图|
-| **上传色图<br>上传男图** | 无 |[TAG][**IMAGE**]|支持批量，[TAG][**IMAGE**][TAG][**IMAGE**]<br>空参时进入上传模式,用户发送的所有图片均视为上传，无操作20秒后自动退出|
+| **上传色图<br>上传男图** | 无 |[TAG][**IMAGE**]|支持批量，[TAG][**IMAGE**][TAG][**IMAGE**]<br>空参时进入上传模式,用户发送的所有图片均视为上传，发送[退出上传]或无操作20秒后自动退出|
 |**查看原图**|**[ID]**|无|可用于保存原画画质的色图,或重新获取该图tag|
 |**删除色图**|**[ID]**|无|删除指定ID色图，非审核人员仅可删除本人上传的色图，删除他人色图请使用'申请删除色图'|
 |**申请删除色图**|**[ID]**|无|提交色图删除申请，自动推送至审核人员|
@@ -131,12 +116,12 @@
 ## TODO
 
 - [x] 改用Sqlite
-- [ ] 重构代码屎山
+- [x] 重构代码屎山
 - [ ] WEB控制台
 - [ ] 在线图库API
 - [ ] 更自由的组合条件查询
 - [ ] 自动审核方式改为炼丹
-- [ ] 优化无代理模式
+- [x] 优化无代理模式
 
 ## 感谢
 

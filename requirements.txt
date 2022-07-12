@@ -1,8 +1,10 @@
-aiohttp==3.8.1
 hjson==3.0.2
+httpx==0.22.0
+loguru==0.6.0
 nonebot~=1.9.1
-PicImageSearch==3.1.9
-Pillow==9.1.0
-PixivPy==3.7.0
+PicImageSearch==3.3.10
+Pillow==9.2.0
+PixivPy_Async==1.2.14
 requests==2.27.1
-selenium~=4.1.3
+selenium==4.3.0
+aiohttp-socks==0.7.1
