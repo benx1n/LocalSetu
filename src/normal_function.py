@@ -52,3 +52,13 @@ async def anti_image(id):
     except:
         traceback.print_exc()
         return '反和谐失败了呜呜呜~'
+    
+async def anti_image_temporary(pixiv_id,pixiv_proxy_url):
+    """临时反和谐"""
+    Anti_harmony_url=setu_folder+"/Anti_harmony_777"
+    await download(pixiv_proxy_url, Anti_harmony_url)   
+    img = Image.open(Anti_harmony_url)
+    img = await image_random_one_pixel(img)
+    Anti_harmony_url = Anti_harmony_url + '8'
+    img.save(Anti_harmony_url,'PNG',quality=75)
+    return str(MessageSegment.image(f'file:///{os.path.abspath(Anti_harmony_url)}'))+f'\n本图片进过反和谐，若有原图需要请从反代链接下载'+ f'\n原图链接：https://pixiv.net/i/{pixiv_id}' + f'\n反代链接:{pixiv_proxy_url}'

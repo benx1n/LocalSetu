@@ -20,16 +20,18 @@ from hoshino import R, Service, priv, get_bot
 from hoshino.util import FreqLimiter, DailyNumberLimiter
 from hoshino.typing import CQEvent, MessageSegment
 from nonebot import NoticeSession, on_command
-from .src.utils import config
+from .src.utils import config,download,image_random_one_pixel
 from .src.get_image import get_local_image,get_original_image
 from .src.load_image import start_load, quit_load, reset_load_time, load_image, LoadImageProcess
 from .src.delete_image import delete_image
-from .src.normal_function import update_tag,anti_image
+from .src.normal_function import update_tag,anti_image,anti_image_temporary
 from .src.verify_image import start_verify,quit_verify,reset_verify_time,update_verify_state,VerifyImageProcess
-from .src.dao import verifyDao
+from .src.publicAPI import get_pixiv_id,get_pixiv_tag_url
+from .src.dao import verifyDao,normalDao
 
 
 verify_group = config['verify_group']
+pximgUrl = config['pixiv']['pximgUrl']
 setu_folder = R.get('img/setu/').path
 _max = 100
 EXCEED_NOTICE = f'您今天已经冲过{_max}次了，请明早5点后再来！'
@@ -113,7 +115,7 @@ async def get_original_setu(bot, ev: CQEvent):
         await bot.send(ev, "请在后面加上要查看的涩图序号~")
         return
     try:
-        msg,url = await get_original_image(id,bot,ev)
+        msg,url,pixiv_id,pixiv_proxy_url = await get_original_image(id,bot,ev)
         if url:
             await bot.send(ev, f"{str(MessageSegment.image(f'file:///{os.path.abspath(url)}'))}\n{msg}")
         else:
@@ -122,8 +124,11 @@ async def get_original_setu(bot, ev: CQEvent):
         traceback.print_exc()
         sv.logger.error(f"发送图片{id}失败")
         try:
-            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...可能是被TXban了')
+            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...正在尝试反和谐后发送')
+            anti_msg = await anti_image_temporary(pixiv_id,pixiv_proxy_url)
+            await bot.send(ev, anti_msg)
         except:
+            traceback.print_exc()
             pass
         
 @sv.on_prefix(('上传色图','上传男图'))
@@ -148,7 +153,7 @@ async def start_load_image(bot, ev:CQEvent):
             await bot.send(ev,msg)
             return
         await load_image(bot,ev,is_man)     #不进入上传模式，直接上传
-    except Exception as e:
+    except:
         traceback.print_exc()
         await quit_load(user_id)
         await bot.send(ev, 'wuwuwu~上传失败了~')
@@ -263,27 +268,19 @@ async def quick_verify(bot, ev:CQEvent):
     except:
         traceback.print_exc()
         await bot.send(ev, "出了点小问题，但一定不是我的问题~")
-#
-#@sv.on_fullmatch(('上传统计'))
-#async def verify_complete(bot, ev: CQEvent):
-#    sql1 = "select count(*) as sumnumber from LocalSetu"
-#    sql2 = "select user,count(user) as number from LocalSetu GROUP BY user ORDER BY number desc limit 10"
-#    test_conn()
-#    cursor.execute(sql1)
-#    conn.commit()
-#    results = cursor.fetchone()
-#    sumnumber = results[0]
-#    text = f"当前图库总数{sumnumber}："
-#    cursor.execute(sql2)
-#    conn.commit()
-#    results = cursor.fetchall()
-#    
-#    for i,raw in enumerate(results):
-#        user = raw[0]
-#        number = raw[1]
-#        text = text +f"\n第{str(i+1)}名："+ f'[CQ:at,qq={str(user)}] '+f'上传{str(number)}张'
-#    await bot.send(ev,text)
-#
+
+@sv.on_fullmatch(('上传统计'))
+async def verify_complete(bot, ev: CQEvent):
+    sumnumber = normalDao().get_image_count()[0]
+    text = f"当前图库总数{sumnumber}："
+    results = normalDao().get_image_upload_rank()
+    
+    for i,raw in enumerate(results):
+        user = raw[0]
+        number = raw[1]
+        text = text +f"\n第{str(i+1)}名："+ f'[CQ:at,qq={str(user)}] '+f'上传{str(number)}张'
+    await bot.send(ev,text)
+
 #@sv.on_prefix(('sql'))
 #async def choose_setu(bot, ev):
 #    uid = ev['user_id']
@@ -340,39 +337,28 @@ async def quick_verify(bot, ev:CQEvent):
 #            pass
 #         
 #
-#@sv.on_prefix(('PID','pid'))
-#async def from_pid_get_image(bot, ev: CQEvent):
-#    id = str(ev.message).strip()
-#    if not id or id=="" or not id.isdigit():
-#        await bot.send(ev, "请在后面加上要查看的涩图P站id~")
-#        return
-#    try:      
-#        pixiv_tag,pixiv_tag_t,r18,pixiv_img_url=get_pixiv_tag_url(id,0)
-#        if not pixiv_tag:
-#            await bot.send(ev, '无法获取图片，该图片可能已被删除')
-#            return
-#        pixiv_img_url = pixiv_img_url.replace("i.pximg.net","i.pixiv.re")
-#        
-#        #####反和谐
-#       # await bot.send(ev,f"{pixiv_img_url}") 
-#        Anti_harmony_url=setu_folder+"/Anti_harmony_777"
-#        await bot.send(ev, '正在获取图片。。。请稍后。')
-#        new_download(pixiv_img_url, Anti_harmony_url)   
-#        img=Image.open(Anti_harmony_url)
-#        img=image_random_one_pixel(img)
-#        Anti_harmony_url = Anti_harmony_url + '8'
-#        img.save(Anti_harmony_url,'PNG',quality=75)
-#
-#     #   await bot.send(ev,f"{pixiv_img_url}")
-#        
-#        await bot.send(ev,str(MessageSegment.image(f'file:///{os.path.abspath(Anti_harmony_url)}'))+f'\n本图片进过反和谐，若有原图需要请从反代链接下载'+ f'\n原图链接：https://pixiv.net/i/{id}' + f'\n反代链接:{pixiv_img_url}')
-#    except CQHttpError:
-#        sv.logger.error(f"发送图片{id}失败")
-#        try:
-#            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
-#        except:
-#            pass
-#
+@sv.on_prefix(('PID','pid'))
+async def from_pid_get_image(bot, ev: CQEvent):
+    id = str(ev.message).strip()
+    if not id or not id.isdigit():
+        await bot.send(ev, "请在后面加上要查看的涩图P站id~")
+        return
+    try:      
+        pixiv_tag,pixiv_tag_t,r18,pixiv_url= await get_pixiv_tag_url(id,0)
+        if not pixiv_tag:
+            await bot.send(ev, '无法获取图片，该图片可能已被删除')
+            return
+        pixiv_proxy_url = re.sub(r"^https://(.*?)/",pximgUrl,pixiv_url)
+        await bot.send(ev, '正在获取图片。。。请稍后。')
+        msg = await anti_image_temporary(id,pixiv_proxy_url)
+        await bot.send(ev, msg)
+    except CQHttpError:
+        sv.logger.error(f"发送图片{id}失败")
+        try:
+            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...tu')
+        except:
+            pass
+
 #@sv.on_prefix('重新下载')
 #async def redownload_img_from_tencent(bot, ev):
 #    id = str(ev.message).strip()

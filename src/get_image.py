@@ -65,9 +65,9 @@ async def get_original_image(id,bot,ev):
     try:
         results = getImgDao().get_original_image(id)
         if not results:
-            return "请检查id是否正确~",None
+            return "请检查id是否正确~",None,None,None
         elif results[1]:
-            return "该涩图正在等待审核，暂不支持查看~", None
+            return "该涩图正在等待审核，暂不支持查看~", None,None,None
         pixiv_url = results[0]
         pixiv_name = results[2]
         pixiv_id = results[3]
@@ -75,12 +75,12 @@ async def get_original_image(id,bot,ev):
             await bot.send(ev, '本地没有找到记录，正在尝试获取原画')
             pixiv_id,index_name= await get_pixiv_id(os.path.join(setu_folder,results[4]))
             if not pixiv_id:
-                return '获取失败了~',None
+                return '获取失败了~',None,None,None
             else:
                 page = re.search(r'_p(\d+)',index_name,re.X)
                 pixiv_tag,pixiv_tag_t,r18,pixiv_url = await get_pixiv_tag_url(pixiv_id,page.group(1))
                 if not pixiv_tag:
-                    return '无法获取原画，该原画可能已被删除',None
+                    return '无法获取原画，该原画可能已被删除',None,None,None
                 else:
                     if pximgUrl:
                         pixiv_proxy_url = re.sub(r"^https://(.*?)/",pximgUrl,pixiv_url)
@@ -90,7 +90,7 @@ async def get_original_image(id,bot,ev):
         url=os.path.join(setu_folder,pixiv_name)
         pixiv_proxy_url = re.sub(r"^https://(.*?)/",pximgUrl,pixiv_url)
         msg = f'原图链接：https://pixiv.net/i/{pixiv_id}' + f'\n反代链接:{pixiv_proxy_url}'
-        return msg,url
+        return msg,url,pixiv_id,pixiv_proxy_url
     except:
         traceback.print_exc()
-        return 'wuwuwu~出了点问题',None
+        return 'wuwuwu~出了点问题',None,None,None

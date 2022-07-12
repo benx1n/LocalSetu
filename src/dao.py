@@ -211,3 +211,19 @@ class normalDao:
         sql="update LocalSetu set anti_url = ? where id = ?"#保存反和谐后地址
         cursor.execute(sql,(anti_url,id))
         conn.commit()
+        
+    def get_image_count(self):
+        """获取图库总数"""
+        test_conn()
+        sql = "select count(*) as sumnumber from LocalSetu"
+        cursor.execute(sql)
+        conn.commit()
+        return cursor.fetchone()
+        
+    def get_image_upload_rank(self):
+        """获取上传前十"""
+        test_conn()
+        sql = "select user,count(user) as number from LocalSetu GROUP BY user ORDER BY number desc limit 10"
+        cursor.execute(sql)
+        conn.commit()
+        return cursor.fetchall()
