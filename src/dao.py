@@ -104,6 +104,33 @@ class loadImgDao:
         return cursor.fetchone()
      
         
+class deleteDao:
+    def __init__(self):
+        test_conn()
+        
+    def get_info(self,id):
+        """检查上传用户和url"""
+        test_conn()
+        sql="select url,user from LocalSetu where id = ?"
+        cursor.execute(sql,(id,))
+        conn.commit()
+        return cursor.fetchall()
+    
+    def apply_for_delete(self,id):
+        """申请删除色图"""
+        test_conn()
+        sql="update LocalSetu set verify = 2 where id = ?"
+        cursor.execute(sql,(id,))
+        conn.commit()
+        
+    def delete_image(self,id):
+        """删除色图"""
+        test_conn()
+        sql="delete from LocalSetu where id = ?"
+        cursor.execute(sql,(id,))
+        conn.commit()
+            
+        
 class verifyDao:
     def __init__(self):
         test_conn()

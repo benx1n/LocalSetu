@@ -22,6 +22,7 @@ from nonebot import NoticeSession, on_command
 from .src.utils import config
 from .src.get_image import get_local_image,get_original_image
 from .src.load_image import start_load, quit_load, reset_load_time, load_image, LoadImageProcess
+from .src.delete_image import delete_image
 
 
 verifies=config['verify_group']
@@ -195,56 +196,16 @@ async def is_load_file(session: NoticeSession):
     await reset_load_time(user_id)
     await load_image(bot,ev,LoadImageProcess[user_id].is_man)
   
-#
-#@sv.on_prefix(('删除涩图', '删除色图','删除男图'))
-#async def del_setu(bot, ev: CQEvent):
-#    id = str(ev.message).strip()
-#    user = ev['user_id']
-#    if not id or id=="" or not id.isdigit():
-#        await bot.send(ev, "请在后面加上要删除的涩图序号~如果要删除非本人上传的涩图，请使用'申请删除色图'指令")
-#        return
-#    if int(user) not in verifies:
-#        try:
-#            test_conn()
-#            sql="select url,user from LocalSetu where id = ?"
-#            cursor.execute(sql,(id,))
-#            conn.commit()
-#            results = cursor.fetchall()
-#            if not results:
-#                await bot.send(ev, '请检查id是否正确~')
-#                return 
-#            for row in results:
-#                url=row[0]
-#                if user != row[1]:
-#                    await bot.send(ev, "这张涩图不是您上传的哦~如果觉得不够涩请使用'申请删除色图'指令")
-#                    return
-#                else:
-#                    sql="delete from LocalSetu where id = ?"
-#                    cursor.execute(sql,(id,))
-#                    conn.commit()
-#                    os.remove(os.path.join(setu_folder, url))
-#                    await bot.send(ev, 'OvO~涩图删掉了~')
-#        except Exception as e:
-#            await bot.send(ev, 'QAQ~删涩图的时候出现了问题，但一定不是我的问题~')
-#    else:
-#        try:
-#            test_conn()
-#            sql="select url from LocalSetu where id = ?"
-#            cursor.execute(sql,(id,))
-#            conn.commit()
-#            results = cursor.fetchall()
-#            if not results:
-#                await bot.send(ev, '请检查id是否正确~')
-#                return
-#            for row in results:
-#                url=row[0]
-#            sql="delete from LocalSetu where id = ?"
-#            cursor.execute(sql,(id,))
-#            conn.commit()
-#            os.remove(os.path.join(setu_folder, url))
-#            await bot.send(ev, 'OvO~涩图删掉了~')
-#        except Exception as e:
-#            await bot.send(ev, 'QAQ~删涩图的时候出现了问题，但一定不是我的问题~')
+@sv.on_prefix(('删除涩图', '删除色图','删除男图'))
+async def del_image(bot, ev: CQEvent):
+    id = str(ev.message).strip()
+    user = ev['user_id']
+    if not id or not id.isdigit():
+        await bot.send(ev, "请在后面加上要删除的涩图序号~")
+        return
+    msg = await delete_image(id,user,bot,ev)
+    await bot.send(ev,msg)
+
 #
 #@sv.on_prefix(('修改TAG','修改tag'))
 #async def modify_tag(bot, ev: CQEvent):
@@ -297,34 +258,6 @@ async def is_load_file(session: NoticeSession):
 #    except Exception as e:
 #        await bot.send(ev, '反和谐失败了呜呜呜~')
 #
-#@sv.on_prefix(('申请删除色图'))
-#async def apply_delete(bot, ev: CQEvent):
-#    id = str(ev.message).strip()
-#    if not id or id=="":
-#        await bot.send(ev, "请在后面加上要申请删除的涩图序号~")
-#        return
-#    try:
-#        test_conn()
-#        sql="select verify,url from LocalSetu where id = ?"
-#        cursor.execute(sql,(id,))
-#        conn.commit()
-#        results = cursor.fetchone()
-#        if not results:
-#           await bot.send(ev, '请检查id是否正确~')
-#           return
-#        verify=results[0]
-#        url = os.path.join(setu_folder,results[1])
-#        if verify:
-#            await bot.send(ev, '该图正在审核哦~')
-#            return
-#        sql="update LocalSetu set verify = 2 where id = ?"
-#        cursor.execute(sql,(id,))
-#        conn.commit()
-#        await bot.send(ev, '提交审核成功，请耐心等待哦~')
-#        for ves in verifies:
-#            await bot.send_private_msg(self_id=ev.self_id, user_id=int(ves),message=f'有新的删除申请,id:{id}'+str(MessageSegment.image(f'file:///{os.path.abspath(url)}')))
-#    except Exception as e:
-#        await bot.send(ev, 'QAQ~出了点小问题,说不定过一会儿就能恢复')
 #
 #class Verify:
 #    def __init__(self):
