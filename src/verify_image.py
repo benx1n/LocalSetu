@@ -21,7 +21,8 @@ async def start_verify(bot,ev,user_id, verify_type ,state=True,sql_state=False,i
             if not VerifyImageProcess[user_id].sql_state:                      #没有待审核图则重新拿一张并发送
                 results = verifyDao().get_verify_info(verify_type)
                 if not results:
-                    return '好耶，当前没有要审核的图~'
+                    await quit_verify(user_id)
+                    return '好耶，当前没有要审核的图~已退出审核模式'
                 VerifyImageProcess[user_id] = VerifyImageProcess[user_id]._replace(image_info = results)
                 man_text = '色图'
                 if results[4]:

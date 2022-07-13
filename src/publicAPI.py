@@ -120,6 +120,7 @@ async def verify(id,url):
         return verify,pixiv_id
     except:
         logger.error(traceback.format_exc())
+        verify = verifyDao().update_verify_stats(id,1)
         return 1,None
     
     
