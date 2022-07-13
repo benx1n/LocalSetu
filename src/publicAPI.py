@@ -1,3 +1,4 @@
+from typing import List
 from PicImageSearch import SauceNAO,Network
 from PicImageSearch.model import SauceNAOResponse
 from pixivpy_async import *
@@ -28,9 +29,11 @@ async def get_pixiv_id(url):
         if sauceNAO_on:
             pixiv_id,index_name,sauceNAO_proxy = 0,'',None
             if sauceNAO_proxy_on:
-                sauceNAO_proxy = config['proxies']['proxy']
+                sauceNAO_proxy = config['proxies']['proxy']                  
             async with Network(proxies = sauceNAO_proxy) as client:
-                sauceNAO_token = random.choice(config['sauceNAO']['token'])
+                sauceNAO_token = config['sauceNAO']['token']
+                if isinstance(sauceNAO_token,list):
+                    sauceNAO_token = random.choice(sauceNAO_token)
                 saucenao = SauceNAO(api_key = sauceNAO_token, client=client, minsim = 60)
                 if url[:4] == 'http':               # 网络url
                     res = await saucenao.search(url=url)
