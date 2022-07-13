@@ -174,7 +174,10 @@ async def is_load_image(bot, ev:CQEvent):
 async def is_load_file(session: NoticeSession):
     try:
         ev = session.event
+        if not 'user_id' in ev:
+            return
         user_id=ev['user_id']
+        print(user_id)
         if not LoadImageProcess[user_id].state:       #是否处于上传模式
             return
         if not ((str(ev).find("'file': {")+1)):  #判断收到的信息是否为文件，不是就退出

@@ -5,14 +5,18 @@ from loguru import logger
 import re
 import traceback
 import asyncio
+import os
+import math
 
-from .dao import verifyDao
+from .dao import verifyDao,deleteDao
 from .utils import config,setu_folder
+from .normal_function import redownload_from_tencent
 
 pixiv_on = config['pixiv']['on']
 sauceNAO_on = config['sauceNAO']['on']
 sauceNAO_proxy_on = config['sauceNAO']['proxy_on']
 pixiv_proxy_on = config['pixiv']['proxy_on']
+sauceNAO_sleep = math.ceil(30/config['sauceNAO']['limit'])
 
 #获取图片pixiv_id
 async def get_pixiv_id(url):
@@ -123,13 +127,21 @@ async def verify(id,url):
 async def auto_verify(id):
     try:
         results = verifyDao().get_verify_list(id)
-        id,success,failed = 0,0,0
+        id,success,failed,delete = 0,0,0,0
         for row in results:
             try:
                 id = row[0] #参数初始化
                 url= setu_folder+'/'+row[1]
                 pixiv_tag,pixiv_tag_t,pixiv_url,r18='','','',0
                 print(f'id='+ str(id))
+                if not os.path.exists(os.path.abspath(url)):
+                    msg = await redownload_from_tencent(id)
+                    logger.info(msg)
+                    if not os.path.exists(os.path.abspath(url)):
+                        deleteDao().delete_image(id)
+                        logger.info(f'{id}本地找不到文件，已自动删除')
+                        delete += 1
+                        continue
                 pixiv_id,index_name = await get_pixiv_id(url)
                 if not pixiv_id:
                     logger.info(f'id:{id}未通过自动审核,可能刚上传至P站或无法访问saucenao')
@@ -150,10 +162,10 @@ async def auto_verify(id):
                         verifyDao().update_verify_info(id,pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_url)
                         logger.info(f'id:{id}通过自动审核,已自动为您获取原图PixivID:{pixiv_id}')
                         success += 1
-                await asyncio.sleep(5)
+                await asyncio.sleep(sauceNAO_sleep)
             except:
                 logger.error(traceback.format_exc())
                 pass
-        return f'重新自动审核完成\n成功'+str(success)+f'张\n失败'+str(failed)+f'张'
+        return f"重新自动审核完成\n成功{success}张\n失败{failed}张\n删除{delete}张"
     except:
         logger.error(traceback.format_exc())
