@@ -41,7 +41,7 @@ async def reset_load_time(user_id):
 async def load_image(bot,ev,is_man):
     try:
         tag = ""
-        tasks1,tasks2,tasks3 = [],[],[]
+        tasks = []
         if ((str(ev).find("'file': {")+1)):    #文件
             tencent_url = ev['file']['url']
             url = ev['file']['name']
@@ -49,9 +49,9 @@ async def load_image(bot,ev,is_man):
             result = loadImgDao().check_url(url)
             if not result:
                 id = loadImgDao().load_image(url,user,tag,is_man,tencent_url)
-                tasks1.append(download(tencent_url, os.path.join(setu_folder,url)))
-                tasks2.append(bot.send(ev, f'[CQ:image,file={tencent_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}'))
-                tasks3.append(send_verify_result(bot,ev,id,tencent_url,is_man))
+                tasks.append(asyncio.ensure_future(download(tencent_url, os.path.join(setu_folder,url))))
+                tasks.append(asyncio.ensure_future(bot.send(ev, f'[CQ:image,file={tencent_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')))
+                tasks.append(asyncio.ensure_future(send_verify_result(bot,ev,id,tencent_url,is_man)))
             else:
                 await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')    
                         
@@ -66,12 +66,12 @@ async def load_image(bot,ev,is_man):
                     result = loadImgDao().check_url(url)
                     if not result:
                         id = loadImgDao().load_image(url,user,tag,is_man,tencent_url)
-                        tasks1.append(download(tencent_url, os.path.join(setu_folder,url)))
-                        tasks2.append(bot.send(ev, f'[CQ:image,file={tencent_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}'))
-                        tasks3.append(send_verify_result(bot,ev,id,tencent_url,is_man))
+                        tasks.append(asyncio.ensure_future(download(tencent_url, os.path.join(setu_folder,url))))
+                        tasks.append(asyncio.ensure_future(bot.send(ev, f'[CQ:image,file={tencent_url}]'+f'涩图收到了~id为{id}\n自定义TAG为{tag}\n稍后会自动从P站获取TAG\n删除请发送删除色图{id}')))
+                        tasks.append(asyncio.ensure_future(send_verify_result(bot,ev,id,tencent_url,is_man)))
                     else:
                         await bot.send(ev, f'涩图已经存在了哦~id为{result[0]}')
-        await asyncio.gather(*tasks1,*tasks2,*tasks3)
+        await asyncio.gather(*tasks)
     except:
         logger.error(traceback.format_exc())
         await bot.send(ev, f'wuwuwu~上传出现了问题~')
