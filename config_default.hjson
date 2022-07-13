@@ -27,8 +27,10 @@
     "on": true,
     //是否开启代理
     "proxy_on": true,
-    //sauceNAO API
-    "token": "",
+    //sauceNAO API，数组形式，推荐配置多个用以避免每日上限100次
+    "token": [
+      ""
+    ],
     //sauceNAO每30秒上限
     "limit": 5
   },

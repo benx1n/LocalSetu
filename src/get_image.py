@@ -73,20 +73,32 @@ async def get_original_image(id,bot,ev):
         pixiv_id = results[3]
         if not pixiv_name:
             await bot.send(ev, '本地没有找到记录，正在尝试获取原画')
-            pixiv_id,index_name= await get_pixiv_id(os.path.join(setu_folder,results[4]))
-            if not pixiv_id:
-                return '获取失败了~',None,None,None
-            else:
-                page = re.search(r'_p(\d+)',index_name,re.X)
-                pixiv_tag,pixiv_tag_t,r18,pixiv_url = await get_pixiv_tag_url(pixiv_id,page.group(1))
+            if pixiv_id:
+                if pximgUrl:
+                    pixiv_proxy_url = re.sub(r"^https://(.*?)/",pximgUrl,pixiv_url)
+                pixiv_name = os.path.split(pixiv_proxy_url)[1]
+                await download(pixiv_proxy_url,os.path.join(setu_folder,pixiv_name))
+                pixiv_tag,pixiv_tag_t,r18,pixiv_url1 = await get_pixiv_tag_url(pixiv_id,0)
                 if not pixiv_tag:
                     return '无法获取原画，该原画可能已被删除',None,None,None
+                getImgDao().update_original_image(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_url,pixiv_name,id)
+            else:
+                pixiv_id,index_name= await get_pixiv_id(os.path.join(setu_folder,results[4]))
+                if not pixiv_id:
+                    return '获取失败了~',None,None,None
                 else:
-                    if pximgUrl:
-                        pixiv_proxy_url = re.sub(r"^https://(.*?)/",pximgUrl,pixiv_url)
-                    pixiv_name = os.path.split(pixiv_proxy_url)[1]
-                    await download(pixiv_proxy_url,os.path.join(setu_folder,pixiv_name))
-                    getImgDao().update_original_image(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_proxy_url,pixiv_name,id)
+                    page = re.search(r'_p(\d+)',index_name,re.X)
+                    if not page:
+                        return '无法获取原画，该原画可能已被删除',None,None,None
+                    pixiv_tag,pixiv_tag_t,r18,pixiv_url = await get_pixiv_tag_url(pixiv_id,page.group(1))
+                    if not pixiv_tag:
+                        return '无法获取原画，该原画可能已被删除',None,None,None
+                    else:
+                        if pximgUrl:
+                            pixiv_proxy_url = re.sub(r"^https://(.*?)/",pximgUrl,pixiv_url)
+                        pixiv_name = os.path.split(pixiv_proxy_url)[1]
+                        await download(pixiv_proxy_url,os.path.join(setu_folder,pixiv_name))
+                        getImgDao().update_original_image(pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_url,pixiv_name,id)
         url=os.path.join(setu_folder,pixiv_name)
         pixiv_proxy_url = re.sub(r"^https://(.*?)/",pximgUrl,pixiv_url)
         msg = f'原图链接：https://pixiv.net/i/{pixiv_id}' + f'\n反代链接:{pixiv_proxy_url}'

@@ -99,7 +99,7 @@ async def send_local_setu(bot, ev):
             logger.warning(traceback.format_exc())
             pass
 
-@sv.on_prefix(('查看原图','看看原图','看看大图','查看大图'))
+@sv.on_prefix(('查看原图','看看原图','看看大图','查看大图','查看原画'))
 async def get_original_setu(bot, ev: CQEvent):
     id = str(ev.message).strip()
     if not id or not id.isdigit():

@@ -7,7 +7,7 @@ import traceback
 import asyncio
 import os
 import math
-
+import random
 from .dao import verifyDao,deleteDao
 from .utils import config,setu_folder
 from .normal_function import redownload_from_tencent
@@ -30,14 +30,14 @@ async def get_pixiv_id(url):
             if sauceNAO_proxy_on:
                 sauceNAO_proxy = config['proxies']['proxy']
             async with Network(proxies = sauceNAO_proxy) as client:
-                saucenao = SauceNAO(api_key=config['sauceNAO']['token'], client=client, minsim = 60)
+                sauceNAO_token = random.choice(config['sauceNAO']['token'])
+                saucenao = SauceNAO(api_key = sauceNAO_token, client=client, minsim = 60)
                 if url[:4] == 'http':               # 网络url
                     res = await saucenao.search(url=url)
                 else:                               # 本地文件
                     file = open(url, "rb")
                     res = await saucenao.search(file=file)
                 if res:
-                    print(res.raw)
                     for raw in res.raw:
                         if raw.pixiv_id:
                             pixiv_id = raw.pixiv_id     
@@ -68,7 +68,7 @@ async def get_pixiv_tag_url(pixiv_id,page):
             async with PixivClient(proxy = pixiv_proxy) as client:
                 aapi = AppPixivAPI(client=client,proxy = pixiv_proxy)
                 if config['pixiv']['refresh_token']:
-                    await aapi.login(refresh_token=config['pixiv']['refresh_token'])
+                    await aapi.login(refresh_token = config['pixiv']['refresh_token'])
                 elif config['pixiv']['username'] and config['pixiv']['password']:
                     await aapi.login(config['pixiv']['username'], config['pixiv']['password'])
                 aapi.set_accept_language('zh-cn')

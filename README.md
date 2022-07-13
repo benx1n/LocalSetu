@@ -24,12 +24,13 @@
 1. 在HoshinoBot的插件目录modules下clone本项目 `git clone https://github.com/benx1n/LocalSetu.git`
 2. 在项目文件夹下执行`pip install -r requirements.txt`安装依赖
 3. 获取[sauceNAO apikey](https://saucenao.com/)及[Pixiv refresh_token](https://gist.github.com/upbit/6edda27cb1644e94183291109b8a5fde)
+>推荐赞助或注册多个sauceNAO账号用以避免每日100次的上限   
     -   windows环境（其他环境您也可以在windows上得到refresh token后给服务器使用）
         >在项目文件夹下执行
         >```
         >python pixiv_auth.py login
         >```
-        >提示chromedriver版本不一致请从[官网](http://chromedriver.storage.  googleapis.com/index.html)下载对应版本驱动<br>
+        >提示chromedriver版本不一致请从[官网](http://chromedriver.storage.googleapis.com/index.html)下载对应版本驱动<br>
         >可能会出现Cloudflare验证，手动验证或切换其他代理即可通过<br>
         >成功后会在窗口内自动显示`refresh_token`<br>
         >注：如果在墙内访问，请**手动设置** `REQUESTS_KWARGS.proxies` 的代理，不然  获取code后无法正确提交请求到Pixiv(现象是 `[INFO] Get code: xxxxx` 后一直卡    住，未requests配置代理即可)
