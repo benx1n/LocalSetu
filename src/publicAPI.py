@@ -160,6 +160,7 @@ async def auto_verify(id):
                         failed += 1
                         #time.sleep(1)
                     else:
+                        verifyDao().update_verify_stats(id,0)
                         verifyDao().update_verify_info(id,pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_url)
                         logger.info(f'id:{id}通过自动审核,已自动为您获取原图PixivID:{pixiv_id}')
                         success += 1
