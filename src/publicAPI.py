@@ -26,7 +26,7 @@ async def get_pixiv_id(url):
     """
     try:
         if sauceNAO_on:
-            pixiv_id,sauceNAO_proxy = 0,None
+            pixiv_id,index_name,sauceNAO_proxy = 0,'',None
             if sauceNAO_proxy_on:
                 sauceNAO_proxy = config['proxies']['proxy']
             async with Network(proxies = sauceNAO_proxy) as client:
@@ -37,13 +37,13 @@ async def get_pixiv_id(url):
                     file = open(url, "rb")
                     res = await saucenao.search(file=file)
                 if res:
+                    print(res.raw)
                     for raw in res.raw:
-                        pixiv_id = raw.pixiv_id     
-                        index_name = raw.index_name
-                        if pixiv_id:
-                            return pixiv_id,index_name
-                        else:
-                            return 0,''
+                        if raw.pixiv_id:
+                            pixiv_id = raw.pixiv_id     
+                            index_name = raw.index_name
+                            break
+                    return pixiv_id,index_name
                 else:
                     return 0,''
         else:
@@ -145,7 +145,7 @@ async def auto_verify(id):
                         continue
                 pixiv_id,index_name = await get_pixiv_id(url)
                 if not pixiv_id:
-                    logger.info(f'id:{id}未通过自动审核,可能刚上传至P站或无法访问saucenao')
+                    logger.info(f'id:{id}未通过自动审核,可能刚上传至P站或无法访问saucenao或token达到单日上限')
                     failed += 1
                     #time.sleep(1)
                 else:
