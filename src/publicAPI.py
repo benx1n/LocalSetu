@@ -73,6 +73,8 @@ async def get_pixiv_tag_url(pixiv_id,page):
                     return '','',0,''
                 page_count = json_result.illust.page_count
                 illust = json_result.illust.tags
+                if not illust:
+                    return '','',0,''
                 pixiv_tag,pixiv_tag_t,pixiv_url,r18='','','',0
                 if illust[0]['name'] == 'R-18':
                     r18 = 1
@@ -123,31 +125,35 @@ async def auto_verify(id):
         results = verifyDao().get_verify_list(id)
         id,success,failed = 0,0,0
         for row in results:
-            id = row[0] #参数初始化
-            url= setu_folder+'/'+row[1]
-            pixiv_tag,pixiv_tag_t,pixiv_url,r18='','','',0
-            print(f'id='+ str(id))
-            pixiv_id,index_name = await get_pixiv_id(url)
-            if not pixiv_id:
-                logger.info(f'id:{id}未通过自动审核,可能刚上传至P站或无法访问saucenao')
-                failed += 1
-                #time.sleep(1)
-            else:
-                page = re.search(r'_p(\d+)',index_name,re.X)
-                if not page:
-                    pagenum = 0
-                else:
-                    pagenum = page.group(1)
-                pixiv_tag,pixiv_tag_t,r18,pixiv_url = await get_pixiv_tag_url(pixiv_id,pagenum)
-                if not pixiv_tag:
-                    logger.info(f'id:{id}未通过自动审核,可能原画已被删除或无法访问P站API')
+            try:
+                id = row[0] #参数初始化
+                url= setu_folder+'/'+row[1]
+                pixiv_tag,pixiv_tag_t,pixiv_url,r18='','','',0
+                print(f'id='+ str(id))
+                pixiv_id,index_name = await get_pixiv_id(url)
+                if not pixiv_id:
+                    logger.info(f'id:{id}未通过自动审核,可能刚上传至P站或无法访问saucenao')
                     failed += 1
                     #time.sleep(1)
                 else:
-                    verifyDao().update_verify_info(id,pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_url)
-                    logger.info(f'id:{id}通过自动审核,已自动为您获取原图PixivID:{pixiv_id}')
-                    success += 1
-            await asyncio.sleep(5)
+                    page = re.search(r'_p(\d+)',index_name,re.X)
+                    if not page:
+                        pagenum = 0
+                    else:
+                        pagenum = page.group(1)
+                    pixiv_tag,pixiv_tag_t,r18,pixiv_url = await get_pixiv_tag_url(pixiv_id,pagenum)
+                    if not pixiv_tag:
+                        logger.info(f'id:{id}未通过自动审核,可能原画已被删除或无法访问P站API')
+                        failed += 1
+                        #time.sleep(1)
+                    else:
+                        verifyDao().update_verify_info(id,pixiv_id,pixiv_tag,pixiv_tag_t,r18,pixiv_url)
+                        logger.info(f'id:{id}通过自动审核,已自动为您获取原图PixivID:{pixiv_id}')
+                        success += 1
+                await asyncio.sleep(5)
+            except:
+                logger.error(traceback.format_exc())
+                pass
         return f'重新自动审核完成\n成功'+str(success)+f'张\n失败'+str(failed)+f'张'
     except:
         logger.error(traceback.format_exc())

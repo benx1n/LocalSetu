@@ -450,8 +450,7 @@ async def re_download_verify():
     results = normalDao().get_tecent_url_list()
     for row in results:
         txt = await redownload_from_tencent(row[0])
-    msg = '自动下载本地缺失文件完成，开始自动审核并爬取缺失TAG'
-    await bot.send_private_msg(user_id=superid, message=msg)
+    await bot.send_private_msg(user_id=superid, message='自动下载本地缺失文件完成，开始自动审核并爬取缺失TAG')
     msg = await auto_verify(1)                                          #重新自动审核
     await bot.send_private_msg(user_id=superid, message=msg)
     return
