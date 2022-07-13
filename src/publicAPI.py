@@ -36,16 +36,16 @@ async def get_pixiv_id(url):
                 else:                               # 本地文件
                     file = open(url, "rb")
                     res = await saucenao.search(file=file)
-            if res:
-                for raw in res.raw:
-                    pixiv_id = raw.pixiv_id     
-                    index_name = raw.index_name
-                    if pixiv_id:
-                        return pixiv_id,index_name
-                    else:
-                        return 0,''
-            else:
-                return 0,''
+                if res:
+                    for raw in res.raw:
+                        pixiv_id = raw.pixiv_id     
+                        index_name = raw.index_name
+                        if pixiv_id:
+                            return pixiv_id,index_name
+                        else:
+                            return 0,''
+                else:
+                    return 0,''
         else:
             return 0,''
     except:
