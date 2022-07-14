@@ -24,17 +24,17 @@
 1. 在HoshinoBot的插件目录modules下clone本项目 `git clone https://github.com/benx1n/LocalSetu.git`
 2. 在项目文件夹下执行`pip install -r requirements.txt`安装依赖
 3. 获取[sauceNAO apikey](https://saucenao.com/)及[Pixiv refresh_token](https://gist.github.com/upbit/6edda27cb1644e94183291109b8a5fde)
->推荐赞助或注册多个sauceNAO账号用以避免每日100次的上限   
-    -   windows环境（其他环境您也可以在windows上得到refresh token后给服务器使用）
-        >在项目文件夹下执行
-        >```
-        >python pixiv_auth.py login
-        >```
-        >提示chromedriver版本不一致请从[官网](http://chromedriver.storage.googleapis.com/index.html)下载对应版本驱动<br>
-        >可能会出现Cloudflare验证，手动验证或切换其他代理即可通过<br>
-        >成功后会在窗口内自动显示`refresh_token`<br>
-        >注：如果在墙内访问，请**手动设置** `REQUESTS_KWARGS.proxies` 的代理，不然  获取code后无法正确提交请求到Pixiv(现象是 `[INFO] Get code: xxxxx` 后一直卡    住，未requests配置代理即可)
-    -  如果您无法获取refresh_token，也可在`config.hjson`中配置pixiv用户名密码用于   登录（非日本节点可能会触发CF盾）
+    >推荐赞助或注册多个sauceNAO账号用以避免每日100次的上限   
+    - windows环境（其他环境您也可以在windows上得到refresh token后给服务器使用）
+    - 在项目文件夹下执行
+        ```
+        python pixiv_auth.py login
+        ```
+    - 提示chromedriver版本不一致请从[官网](http://chromedriver.storagegoogleapis.com/index.html)下载对应版本驱动  
+    - 可能会出现Cloudflare验证，手动验证或切换其他代理即可通过  
+    - 成功后会在窗口内自动显示`refresh_token`  
+    - 注：如果在墙内访问，请**手动设置** `REQUESTS_KWARGS.proxies` 的代理不然  获取code后无法正确提交请求到Pixiv(现象是 `[INFO] Get code:xxxxx` 后一直卡住，未requests配置代理即可)
+    - ~~如果您无法获取refresh_token，也可在`config.hjson`中配置pixiv用户名密用于登录~~（不保证可用，推荐获取refresh-token）
 
 4. 将配置文件 `config_default.hjson` 拷贝一份后重命名为 `config.hjson` , 修改配置文件中的设置<br>
 5. 在 `config/__bot__.py`的模块列表里加入 `LocalSetu`
@@ -43,46 +43,46 @@
 ## 更新
 
 1. 在项目文件夹下执行
-    >```
-    >git pull
-    >pip install -r requirements.txt
-    >```
+    ```
+    git pull
+    pip install -r requirements.txt
+    ```
 2. 对比config_default中是否有新增配置项，同步至本地config
 3. 重启hoshinobot
 4. 向机器人发送`更新数据库列表`
 
 ## DLC
 
-- **私聊支持：（可能会引起其他插件部分功能异常）<br>**
-    >修改Hoshinobot文件夹中`.\hoshino\priv.py`内check_priv函数，返回值改为True<br>
-    >```
-    >def check_priv(ev: CQEvent, require: int) -> bool:
-    >if ev['message_type'] == 'group':
-    >    return bool(get_user_priv(ev) >= require)
-    >else:
-    >    return True
-    >```
-    >注释Hoshinobot文件夹中`.\hoshino\msghandler.py`内下方代码<br>
-    >```
-    >if event.detail_type != 'group':
-    >    return
-    >```
-        >修改Hoshinobot文件夹中`.\hoshino\service.py`内on_message函数,将event='group'及结尾的event替换为*events<br>
-    >```
-    >def on_message(self, *events) -> Callable:
-    >def deco(func) -> Callable:
-    >    @wraps(func)
-    >    async def wrapper(ctx):
-    >        if self._check_all(ctx):
-    >            try:
-    >                return await func(self.bot, ctx)
-    >            except Exception as e:
-    >                self.logger.error(f'{type(e)} occured when {func.__name__} handling message {ctx["message_id"]}.')
-    >                self.logger.exception(e)
-    >            return
-    >    return self.bot.on_message(*events)(wrapper)
-    >return deco
-    >```
+- **私聊支持：（可能会引起其他插件部分功能异常）**  
+    - 修改Hoshinobot文件夹中`.\hoshino\priv.py`内check_priv函数，返回值改为True  
+        ```
+        def check_priv(ev: CQEvent, require: int) -> bool:
+        if ev['message_type'] == 'group':
+            return bool(get_user_priv(ev) >= require)
+        else:
+            return True
+        ```
+    - 注释Hoshinobot文件夹中`.\hoshino\msghandler.py`内下方代码  
+        ```
+        if event.detail_type != 'group':
+            return
+        ```
+    - 修改Hoshinobot文件夹中`.\hoshino\service.py`内on_message函数,将`event='group'`及结尾的`event`替换为`*events`  
+        ```
+        def on_message(self, *events) -> Callable:
+        def deco(func) -> Callable:
+            @wraps(func)
+            async def wrapper(ctx):
+                if self._check_all(ctx):
+                    try:
+                        return await func(self.bot, ctx)
+                    except Exception as e:
+                        self.logger.error(f'{type(e)} occured when {func.  _name__} handling message {ctx["message_id"]}.')
+                        self.logger.exception(e)
+                    return
+            return self.bot.on_message(*events)(wrapper)
+        return deco
+        ```
 
 ## 指令说明
 |  指令   | 必要参数  |可选参数|说明|
@@ -129,10 +129,10 @@
 
 ## 感谢
 
-[HoshinoBot](https://github.com/Ice-Cirno/HoshinoBot)<br>
-[go-cqhttp](https://github.com/Mrs4s/go-cqhttp)<br>
-[PicImageSearch](https://github.com/kitUIN/PicImageSearch)<br>
-[pixivpy](https://github.com/upbit/pixivpy)<br>
+[HoshinoBot](https://github.com/Ice-Cirno/HoshinoBot)  
+[go-cqhttp](https://github.com/Mrs4s/go-cqhttp)  
+[PicImageSearch](https://github.com/kitUIN/PicImageSearch)  
+[pixivpy](https://github.com/upbit/pixivpy)  
 
 ## 开源协议
 
