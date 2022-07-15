@@ -89,9 +89,9 @@ async def send_local_setu(bot, ev):
         logger.warning(traceback.format_exc())
         sv.logger.error(f"发送图片{id}失败")
         try:
-            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...正在尝试反和谐后发送')
+            await bot.send(ev, f"T T涩图{id}不知道为什么发不出去勒...正在尝试反和谐后发送")
             anti_msg = await anti_image(id)
-            await bot.send(ev, anti_msg)
+            await bot.send(ev, f"{anti_msg}\n{msg}")
         except:
             logger.warning(traceback.format_exc())
             pass
@@ -112,9 +112,9 @@ async def get_original_setu(bot, ev: CQEvent):
         logger.error(traceback.format_exc())
         sv.logger.warning(f"发送图片{id}失败")
         try:
-            await bot.send(ev, 'T T涩图不知道为什么发不出去勒...正在尝试反和谐后发送')
+            await bot.send(ev, f"T T涩图{id}不知道为什么发不出去勒...正在尝试反和谐后发送")
             anti_msg = await anti_image_temporary(pixiv_id,pixiv_proxy_url)
-            await bot.send(ev, anti_msg)
+            await bot.send(ev, f"{anti_msg}\n{msg}")
         except:
             logger.warning(traceback.format_exc())
             pass
