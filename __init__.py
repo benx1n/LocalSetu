@@ -114,7 +114,7 @@ async def get_original_setu(bot, ev: CQEvent):
         try:
             await bot.send(ev, f"T T涩图{id}不知道为什么发不出去勒...正在尝试反和谐后发送")
             anti_msg = await anti_image_temporary(pixiv_id,pixiv_proxy_url)
-            await bot.send(ev, f"{anti_msg}\n{msg}")
+            await bot.send(ev, f"{anti_msg}")
         except:
             logger.warning(traceback.format_exc())
             pass
